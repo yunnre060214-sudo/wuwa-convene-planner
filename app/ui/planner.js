@@ -373,8 +373,11 @@ $("cancel").addEventListener("click", () => {
   status("正在停止计算…");
 });
 window.convene?.onProgress((progress) => {
+  if (!running || $("cancel").disabled) return;
   const kind = { normal: "普通返还", maxed: "溢出上界", detail: "逐位追踪", baseline: "无新增回流" }[progress.scenario];
-  status(`${strategies[progress.strategy]} / ${kind} · ${progress.states.toLocaleString("zh-CN")} / ${progress.budget.toLocaleString("zh-CN")} 状态`);
+  const count = progress.states.toLocaleString("zh-CN");
+  const step = progress.layers ? `第 ${progress.layer} 步 · 已展开 ${count} 状态` : `${count} / ${progress.budget.toLocaleString("zh-CN")} 状态`;
+  status(`${strategies[progress.strategy]} / ${kind} · ${step}`);
 });
 form.addEventListener("input", changed);
 document.querySelectorAll(".nav-button").forEach((button) => {

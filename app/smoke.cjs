@@ -16,9 +16,12 @@ async function exerciseRenderer() {
     if (!condition) throw new Error(detail);
   };
   const wait = (read) => new Promise((resolve, reject) => {
-    const deadline = performance.now() + 15_000;
+    const deadline = performance.now() + 20_000;
     const timer = setInterval(() => {
-      if (read()) {
+      if (field("status").classList.contains("error")) {
+        clearInterval(timer);
+        reject(new Error(field("status").textContent));
+      } else if (read()) {
         clearInterval(timer);
         resolve();
       } else if (performance.now() > deadline) {

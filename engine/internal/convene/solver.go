@@ -42,6 +42,8 @@ type Progress struct {
 	Strategy string `json:"strategy"`
 	Scenario string `json:"scenario"`
 	States   int    `json:"states"`
+	Layer    int    `json:"layer,omitempty"`
+	Layers   int    `json:"layers,omitempty"`
 	Budget   int    `json:"budget"`
 }
 
@@ -275,23 +277,23 @@ func (a mixture) value() interval {
 	return a.sum
 }
 
-func (m *solver) draw(s state, pool int) interval {
+type outcome func(state, interval)
+
+func (m *solver) outcomes(s state, pool int, emit outcome) {
 	s = m.spend(s, pool)
 	p := s.pool[pool]
 	if !m.refund {
 		prob := m.odds[pool][p.five()][0].prob[2]
-		var result mixture
 		if prob.hi > 0 {
-			result.add(prob, m.five(s, pool, p))
+			m.five(s, pool, p, prob, emit)
 		}
 		if prob.lo < Scale {
 			s.pool[pool] = makePity(p.five()+1, 0, p.up5(), false)
-			result.add(prob.complement(), m.value(s))
+			emit(s, prob.complement())
 		}
-		return result.value()
+		return
 	}
 	odds := m.odds[pool][p.five()][p.four()]
-	var result mixture
 	for _, rarity := range odds.rank {
 		prob := odds.prob[rarity]
 		if prob.hi == 0 {
@@ -301,48 +303,50 @@ func (m *solver) draw(s state, pool int) interval {
 		case 0:
 			three := s
 			three.pool[pool] = makePity(p.five()+1, p.four()+1, p.up5(), p.up4())
-			result.add(prob, m.value(m.credit(three, 0, 3)))
+			emit(m.credit(three, 0, 3), prob)
 		case 1:
-			result.add(prob, m.four(s, pool, p))
+			m.four(s, pool, p, prob, emit)
 		case 2:
-			result.add(prob, m.five(s, pool, p))
+			m.five(s, pool, p, prob, emit)
 		}
 	}
-	return result.value()
 }
 
-func (m *solver) withItems(s state, bucket int) interval {
-	var result mixture
+func (m *solver) withItems(s state, bucket int, weight interval, emit outcome) {
 	for _, roll := range m.roster.rolls(s.hold, bucket) {
 		next := s
 		next.hold = roll.hold
-		result.add(roll.prob, m.value(m.credit(next, roll.reward, 0)))
+		emit(m.credit(next, roll.reward, 0), weight.times(roll.prob))
 	}
-	return result.value()
 }
 
-func (m *solver) four(s state, pool int, p pity) interval {
+func (m *solver) four(s state, pool int, p pity, weight interval, emit outcome) {
 	up := s
 	up.pool[pool] = makePity(p.five()+1, 0, p.up5(), false)
-	var featured interval
+	if m.scenario == "normal" || m.scenario == "maxed" && pool == character {
+		reward := 3
+		if m.scenario == "maxed" {
+			reward = 8
+		}
+		emit(m.credit(up, reward, 0), weight)
+		return
+	}
+	if !p.up4() {
+		weight = weight.times(fraction(1, 2))
+	}
 	if pool == weapon {
-		featured = m.value(m.credit(up, 3, 0))
+		emit(m.credit(up, 3, 0), weight)
 	} else {
-		featured = m.withItems(up, fourUp)
+		m.withItems(up, fourUp, weight, emit)
 	}
-	if p.up4() {
-		return featured
+	if !p.up4() {
+		off := s
+		off.pool[pool] = makePity(p.five()+1, 0, p.up5(), true)
+		m.withItems(off, fourOffCharacter+pool, weight, emit)
 	}
-	off := s
-	off.pool[pool] = makePity(p.five()+1, 0, p.up5(), true)
-	var result mixture
-	half := fraction(1, 2)
-	result.add(half, featured)
-	result.add(half, m.withItems(off, fourOffCharacter+pool))
-	return result.value()
 }
 
-func (m *solver) five(s state, pool int, p pity) interval {
+func (m *solver) five(s state, pool int, p pity, weight interval, emit outcome) {
 	fourPity := 0
 	if m.refund && !m.config.Rules.FiveResetsFour {
 		fourPity = min(9, p.four()+1)
@@ -353,29 +357,34 @@ func (m *solver) five(s state, pool int, p pity) interval {
 		up.need[pool]--
 	}
 	if pool == weapon {
-		return m.value(m.credit(up, 15, 0))
+		emit(m.credit(up, 15, 0), weight)
+		return
 	}
 	reward := 15
 	if up.owned == 7 {
 		reward = 40
 	}
 	up.owned = min(7, up.owned+1)
-	featured := m.value(m.credit(up, reward, 0))
-	if p.up5() {
-		return featured
+	if !p.up5() {
+		weight = weight.times(fraction(1, 2))
 	}
-	off := s
-	off.pool[pool] = makePity(0, fourPity, true, p.up4())
-	var notFeatured interval
-	if m.refund {
-		notFeatured = m.withItems(off, fiveOff)
-	} else {
-		notFeatured = m.value(off)
+	emit(m.credit(up, reward, 0), weight)
+	if !p.up5() {
+		off := s
+		off.pool[pool] = makePity(0, fourPity, true, p.up4())
+		if m.refund {
+			m.withItems(off, fiveOff, weight, emit)
+		} else {
+			emit(off, weight)
+		}
 	}
+}
+
+func (m *solver) draw(s state, pool int) interval {
 	var result mixture
-	half := fraction(1, 2)
-	result.add(half, featured)
-	result.add(half, notFeatured)
+	m.outcomes(s, pool, func(next state, probability interval) {
+		result.add(probability, m.value(next))
+	})
 	return result.value()
 }
 
@@ -400,7 +409,7 @@ func (m *solver) value(s state) interval {
 	}
 	m.visited++
 	if m.progress != nil && (m.visited == 1 || m.visited%65_536 == 0) {
-		m.progress(Progress{m.strategy, m.scenario, m.visited, m.config.StateBudget})
+		m.progress(Progress{Strategy: m.strategy, Scenario: m.scenario, States: m.visited, Budget: m.config.StateBudget})
 	}
 	var result interval
 	for _, action := range actions[:count] {
@@ -437,10 +446,22 @@ func solveScenario(c Config, strategy, scenario string, refund bool, progress fu
 	if !refund && m.initial.shop == 0 {
 		return solved{p: m.noFeedback()}
 	}
-	p := m.value(m.initial)
+	var p interval
+	if strategy != "optimal" && m.initial.shop == 0 {
+		p = m.forward()
+	} else if strategy == "optimal" && m.initial.shop == 0 && !c.Farm &&
+		(m.initial.need[character] == 0 || m.initial.need[weapon] == 0) {
+		p = m.forward()
+	} else {
+		p = m.value(m.initial)
+	}
 	if m.hasCutoff {
 		// A feasible policy using the starting wallet gives a lower bound.
 		p.lo = max(p.lo, m.noFeedback().lo)
+		if refund && strategy == "optimal" && !c.Farm && m.initial.shop == 0 &&
+			m.initial.need[character] > 0 && m.initial.need[weapon] > 0 {
+			p.hi = min(p.hi, m.prepaidUpper().hi)
+		}
 	}
 	return solved{p, m.rootActions, m.hasCutoff, m.visited}
 }
@@ -481,6 +502,14 @@ func Calculate(c Config, progress func(Progress)) (Result, error) {
 			row.Incomplete = row.Incomplete || baseline.cutoff
 			row.States += baseline.states
 			current.p.lo = max(current.p.lo, baseline.p.lo)
+		}
+		if strategy == "optimal" && current.cutoff && len(strategies) == 1 &&
+			c.Goals.Character > 0 && c.Goals.Weapon > 0 {
+			for _, alternative := range []string{"characterFirst", "weaponFirst"} {
+				fixed := combined(c, alternative, progress)
+				current.p.lo = max(current.p.lo, fixed.p.lo)
+				row.States += fixed.states
+			}
 		}
 		if strategy == "optimal" {
 			current.p.lo = max(current.p.lo, fixedLower)

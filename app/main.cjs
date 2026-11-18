@@ -98,6 +98,7 @@ function createWindow() {
       sandbox: true,
       nodeIntegration: false,
       spellcheck: false,
+      backgroundThrottling: !smoke,
       webSecurity: true,
     },
   });
@@ -132,6 +133,9 @@ app.on("before-quit", stop);
 app.whenReady().then(async () => {
   await createWindow();
   if (smoke) {
+    window.webContents.on("console-message", (entry) => {
+      if (entry.level === "error") console.error(entry.message);
+    });
     const { smokeRenderer } = require("./smoke.cjs");
     const result = await smokeRenderer(window.webContents);
     console.log(JSON.stringify({ smoke: "passed", ...result }));
