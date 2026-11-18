@@ -75,15 +75,44 @@ async function exerciseRenderer() {
   expect(field("draw-leftover").textContent === "约 0 抽", "Wrong waveband-only leftover");
   expect(field("draw-conditions").textContent.includes("换了 1 份频段"), "Missing waveband use");
 
+  document.querySelector('[data-page="ownership"]').click();
+  set("ownership-mode", "fullFour");
+  expect(!field("full-four-editor").hidden && field("roster-editor").hidden, "Preset should replace the individual four-star inputs");
+  expect(field("five-editor").hidden, "Preset should work without a five-star roster");
+  set("preset-use-five", true);
+  expect(!field("five-editor").hidden, "Five-star roster should be available on request");
+  set("preset-use-five", false);
+  set("character-mode", "copies");
+  set("afterglow", 0);
+  set("radiant", 1);
+  set("spend-afterglow", true);
+  set("c5", 78);
+  set("c4", 9);
+  field("calculate").click();
+  await wait(() => field("status").textContent === "计算完成");
+  expect(field("probability").textContent.endsWith("–100%"), "Unknown pool mix should show a range");
+  expect(field("uncertainty").textContent.includes("四星数量未知"), "Missing preset range explanation");
+
+  set("preset-c-roles", 12);
+  field("calculate").click();
+  expect(field("status").textContent.includes("请一起填"), "Incomplete pool totals should be explained");
+  set("preset-c-weapons", 15);
+  field("calculate").click();
+  await wait(() => field("status").textContent === "计算完成");
+  expect(field("probability").textContent === "69%", "Incorrect chance with known pool totals");
+  expect(!field("uncertainty").textContent.includes("四星数量未知"), "The unplayed empty pool should not widen the result");
+  const saved = JSON.parse(localStorage.getItem("tide-planner-1")).values;
+  expect(saved["ownership-mode"] === "fullFour" && saved["preset-c-roles"] === "12", "Preset and totals should be saved");
+
   document.querySelector('[data-page="model"]').click();
   set("profile", "custom");
   field("calculate").click();
-  expect(field("status").textContent.includes("80 项"), "Invalid custom curves were accepted");
+  expect(field("status").textContent.includes("80 个"), "Invalid custom curves were accepted");
   field("seed-custom").click();
   expect(field("custom-character").value.split(" ").length === 80, "Curve seed failed");
   return {
     joint: "100%", noFeedback: "0%", emptyWallet: "0%", strategyRows: 3,
-    drawEstimates: true, coralChoice: true, probabilityGrade: true, customValidation: true,
+    drawEstimates: true, coralChoice: true, probabilityGrade: true, fullFourPreset: true, customValidation: true,
   };
 }
 

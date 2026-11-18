@@ -18,7 +18,7 @@
         <button type="button" class="nav-button" data-page="ownership"><span aria-hidden="true">▤</span>角色持有量</button>
         <button type="button" class="nav-button" data-page="model"><span aria-hidden="true">⌁</span>计算设置</button>
       </nav>
-      <footer>本机计算 · 离线可用 <span>1.1</span></footer>
+      <footer>本机计算 · 离线可用 <span>1.1.1</span></footer>
     </aside>
     <main>
       <header class="toolbar">
@@ -138,52 +138,75 @@
 
           <div id="ownership" class="page" hidden>
             <section class="card">
-              <h2>珊瑚返还与持有量</h2>
-              <p class="help intro">同一角色第 8 份起会多返还余波珊瑚。两池均可能掉落的四星角色共用持有计数。</p>
-              <label class="field">其他角色的持有量
+              <h2>重复角色返多少珊瑚</h2>
+              <p class="help intro">同一角色从第 8 份起会多返珊瑚。</p>
+              <label class="field">你已拥有的角色
                 <select id="ownership-mode">
-                  <option value="bounds">不知道 · 显示概率范围</option>
-                  <option value="normal">按普通返还计算</option>
-                  <option value="maxed">按较多返还计算</option>
-                  <option value="detail">逐个填写角色持有量</option>
+                  <option value="bounds">不确定 · 看一个范围</option>
+                  <option value="fullFour">四星全满 · 预设</option>
+                  <option value="normal">按普通返还算</option>
+                  <option value="maxed">按最多返还算</option>
+                  <option value="detail">逐个填写角色</option>
                 </select>
               </label>
               <p id="ownership-description" class="help"></p>
             </section>
-            <div id="roster-editor" hidden>
-              <section class="card">
-                <h2>五星非 UP 角色</h2>
-                <p class="help">每个非 UP 角色等权。填写已有有效份数，7 表示再获得时按溢出结算。</p>
-                <div id="five-roster" class="five-roster"></div>
-                <button class="quiet-button add-row" type="button" data-add="five">添加常驻五星</button>
-              </section>
-              <section class="card">
-                <h2>四星角色与非 UP 权重</h2>
-                <p class="help">注明角色池 3 位 UP 四星。非 UP 项目可按名单等权填 1，某角色不在该池时填 0。两池的非 UP 四星武器分别汇总为总权重。</p>
-                <div class="pair">
-                  <label class="field">角色池非 UP 武器总权重<input id="c-weapon-weight" type="number" min="0" max="64000" required></label>
-                  <label class="field">武器池非 UP 武器总权重<input id="w-weapon-weight" type="number" min="0" max="64000" required></label>
+            <section class="card" id="full-four-editor" hidden>
+              <h2>四星全满</h2>
+              <p class="help intro">直接计算即可。想把范围算窄些，可以填写池里的四星数量。</p>
+              <details class="inline-details">
+                <summary>填写卡池数量（可选）</summary>
+                <p class="help">看游戏里的「唤取详情」。每池的两项一起填，总数包含当期 UP。</p>
+                <div class="two-column">
+                  <fieldset><legend>角色池</legend>
+                    <div class="pair">
+                      <label class="field">四星角色数<input id="preset-c-roles" type="number" min="3" max="64" placeholder="未知"></label>
+                      <label class="field">四星武器数<input id="preset-c-weapons" type="number" min="0" max="64" placeholder="未知"></label>
+                    </div>
+                  </fieldset>
+                  <fieldset><legend>武器池</legend>
+                    <div class="pair">
+                      <label class="field">四星角色数<input id="preset-w-roles" type="number" min="0" max="64" placeholder="未知"></label>
+                      <label class="field">四星武器数<input id="preset-w-weapons" type="number" min="3" max="64" placeholder="未知"></label>
+                    </div>
+                  </fieldset>
                 </div>
-                <div class="table-wrap">
-                  <table class="roster-table">
-                    <thead><tr><th scope="col">角色名称</th><th scope="col">已有份数</th><th scope="col">角色池 UP</th><th scope="col">角色池权重</th><th scope="col">武器池权重</th><th scope="col"><span class="sr-only">操作</span></th></tr></thead>
-                    <tbody id="four-roster"></tbody>
-                  </table>
-                </div>
-                <button class="quiet-button add-row" type="button" data-add="four">添加四星角色</button>
-              </section>
-            </div>
+              </details>
+              <label class="check"><input id="preset-use-five" type="checkbox">按我填写的常驻五星份数算</label>
+              <p id="preset-five-default" class="help">常驻五星按普通返还算。</p>
+            </section>
+            <section class="card" id="five-editor" hidden>
+              <h2>常驻五星角色</h2>
+              <p class="help">填已有的份数，7 代表 7 份或更多。</p>
+              <div id="five-roster" class="five-roster"></div>
+              <button class="quiet-button add-row" type="button" data-add="five">添加常驻五星</button>
+            </section>
+            <section class="card" id="roster-editor" hidden>
+              <h2>可抽到的四星角色</h2>
+              <p class="help">勾选角色池当期 3 位四星。其他项目在该池能抽到填 1，抽不到填 0。武器按每把 1 加总，去掉当期 UP。要调整相对出率，可以改变对应的数字。</p>
+              <div class="pair">
+                <label class="field">角色池 · 非 UP 四星武器合计<input id="c-weapon-weight" type="number" min="0" max="64000" required></label>
+                <label class="field">武器池 · 非 UP 四星武器合计<input id="w-weapon-weight" type="number" min="0" max="64000" required></label>
+              </div>
+              <div class="table-wrap">
+                <table class="roster-table">
+                  <thead><tr><th scope="col">角色名称</th><th scope="col">已有份数</th><th scope="col">角色池 UP</th><th scope="col">角色池</th><th scope="col">武器池</th><th scope="col"><span class="sr-only">操作</span></th></tr></thead>
+                  <tbody id="four-roster"></tbody>
+                </table>
+              </div>
+              <button class="quiet-button add-row" type="button" data-add="four">添加四星角色</button>
+            </section>
           </div>
 
           <div id="model" class="page" hidden>
             <section class="card">
-              <h2>五星概率曲线</h2>
-              <p class="help intro">官方公布基础概率 0.8% 和 80 抽上限。游戏服务端的逐抽曲线未公开，结果依赖这里选定的曲线。</p>
-              <label class="field">保底模型
+              <h2>五星怎么出</h2>
+              <p class="help intro">官方公布基础出率为 0.8%，最晚第 80 抽出五星。每一抽的具体出率可以参考玩家记录。</p>
+              <label class="field">五星出率
                 <select id="profile">
-                  <option value="empirical">参考社区实测 · 第 66 抽起提升</option>
+                  <option value="empirical">参考玩家记录 · 第 66 抽起更容易出五星</option>
                   <option value="hard">只在第 80 抽保底</option>
-                  <option value="custom">自定义角色与武器曲线</option>
+                  <option value="custom">自己填写每抽出率</option>
                 </select>
               </label>
               <div id="curve-chart" class="curve-chart" aria-label="各抽次五星概率"></div>
@@ -191,25 +214,27 @@
               <p id="curve-note" class="help"></p>
               <div id="custom-curves" hidden>
                 <p class="help">每池输入 80 个百分数，以空格或逗号分隔。第 80 项为 100，最多支持 7 位小数。</p>
-                <label class="field">角色池五星曲线（%）<textarea id="custom-character" rows="4"></textarea></label>
-                <label class="field">武器池五星曲线（%）<textarea id="custom-weapon" rows="4"></textarea></label>
-                <button id="seed-custom" type="button" class="quiet-button">填入实测拟合作为编辑起点</button>
+                <label class="field">角色池每抽五星出率（%）<textarea id="custom-character" rows="4"></textarea></label>
+                <label class="field">武器池每抽五星出率（%）<textarea id="custom-weapon" rows="4"></textarea></label>
+                <button id="seed-custom" type="button" class="quiet-button">用玩家记录填一遍</button>
               </div>
             </section>
             <section class="card">
-              <h2>四星与波纹设定</h2>
-              <label class="field">四星概率与五星软保底的交互
-                <select id="four-mode"><option value="absolute">四星保持绝对 6%，受剩余概率限制</option><option value="conditional">未出五星时，四星保持相对比例</option></select>
-              </label>
-              <label class="check"><input id="five-resets-four" type="checkbox" checked>获得五星时清零四星垫抽</label>
-              <label class="check"><input id="buy-counts" type="checkbox" checked>商店回音频段计入溢出份数</label>
-              <p class="help">四星累计至第 10 抽时，未出五星则必出四星。持有量须按你采用的份数口径填写，包含可用的未激活频段。</p>
+              <details class="rule-details">
+                <summary>更多抽取规则</summary>
+                <label class="field detail-field">五星更容易出时，四星怎么算
+                  <select id="four-mode"><option value="absolute">四星尽量按 6% 算</option><option value="conditional">五星越容易出，四星越少出</option></select>
+                </label>
+                <label class="check"><input id="five-resets-four" type="checkbox" checked>抽到五星后，重新数四星保底</label>
+                <label class="check"><input id="buy-counts" type="checkbox" checked>算重复返还时，把换的频段也记作一份</label>
+                <p class="help">等到四星保底时，如果这抽没出五星，就会出四星。</p>
+              </details>
             </section>
             <section class="card source-card">
               <h2>规则来源</h2>
               <a href="https://wutheringwaves.kurogames.com/en/main/news/detail/758" target="_blank" rel="noreferrer">库洛游戏 · 唤取规则</a>
               <a href="https://www.bilibili.com/opus/936615544201674759" target="_blank" rel="noreferrer">一棵平衡树 · WuwaTracker 实测分析</a>
-              <a href="https://github.com/yunnre060214-sudo/wuwa-convene-planner/blob/main/docs/model.md" target="_blank" rel="noreferrer">算法、来源与误差说明</a>
+              <a href="https://github.com/yunnre060214-sudo/wuwa-convene-planner/blob/main/docs/model.md" target="_blank" rel="noreferrer">计算说明与来源</a>
             </section>
           </div>
         </form>
@@ -220,7 +245,7 @@
             <div class="result-label"><i></i><span id="result-label">联合成功概率</span></div>
             <output id="probability" for="astrite radiant forging">—</output>
             <div class="grade-line"><span id="luck-grade" hidden></span><span id="result-detail">等待计算</span></div>
-            <div class="hero-footer"><span id="result-rule">参考社区实测</span></div>
+            <div class="hero-footer"><span id="result-rule">参考玩家记录</span></div>
           </section>
           <div class="compute-actions">
             <button type="submit" form="planner" id="calculate" class="primary-button">计算成功概率 <span aria-hidden="true">↗</span></button>

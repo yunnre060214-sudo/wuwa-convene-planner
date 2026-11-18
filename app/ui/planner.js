@@ -9,12 +9,13 @@ const futureLabels = {
   character: "先抽角色", weapon: "先抽武器", waveband: "先换共鸣链",
 };
 const ownershipLabels = {
-  bounds: "用普通和较多两种返还情况，估出成功率可能落在的范围。",
-  normal: "假设其他角色重复时按普通数量返还。",
-  maxed: "按重复角色可能返还的最多数量计算。",
-  detail: "根据每个角色的持有份数处理返还。请补全两池名单和掉落权重。",
+  bounds: "持有份数不清楚时，用较少和较多的返还算出一个范围。",
+  fullFour: "所有四星角色已有至少 7 份。再抽到四星角色返 8 个余波珊瑚，四星武器返 3 个。",
+  normal: "其他角色按普通数量返还。",
+  maxed: "按可能拿到的最多珊瑚算。",
+  detail: "按你填写的角色份数和卡池名单算。",
 };
-const profileLabels = { empirical: "参考社区实测", hard: "只算第 80 抽保底", custom: "自定义保底" };
+const profileLabels = { empirical: "参考玩家记录", hard: "只算第 80 抽保底", custom: "按填入的出率" };
 const pageTitles = { plan: "抽取计划", ownership: "角色持有量", model: "计算设置" };
 const appFields = Array.from(form.querySelectorAll("[id]")).filter((field) =>
   field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement
@@ -99,8 +100,8 @@ function rosterRow(category, role = {}) {
     row.append(name, owned, remove);
   } else {
     const up = propertyInput("checkbox", "up", role.up, "属于角色池 UP 四星");
-    const c = propertyInput("number", "characterWeight", role.characterWeight ?? 1, "角色池权重", 1000);
-    const w = propertyInput("number", "weaponWeight", role.weaponWeight ?? 1, "武器池权重", 1000);
+    const c = propertyInput("number", "characterWeight", role.characterWeight ?? 1, "角色池可抽情况", 1000);
+    const w = propertyInput("number", "weaponWeight", role.weaponWeight ?? 1, "武器池可抽情况", 1000);
     c.disabled = up.checked;
     up.addEventListener("change", () => { c.disabled = up.checked; });
     [name, owned, up, c, w, remove].forEach((control) => {
@@ -118,7 +119,7 @@ function readRoster(category, validate = false) {
   return Array.from($(`${category}-roster`).children, (row) => {
     const role = {};
     row.querySelectorAll("[data-property]").forEach((input) => {
-      if (validate && !input.validity.valid) throw new Error("请填写完整、有效的角色名称、持有数和概率权重。");
+      if (validate && !input.validity.valid) throw new Error("请检查角色名称、已有份数和卡池栏里的数字。");
       let value = input.value;
       if (input.type === "checkbox") value = input.checked;
       if (input.type === "number") value = Number(input.value);
@@ -142,6 +143,18 @@ function readWallet() {
   };
 }
 
+function readFourPool(prefix) {
+  const roleID = `preset-${prefix}-roles`;
+  const weaponID = `preset-${prefix}-weapons`;
+  const fields = [$(roleID), $(weaponID)];
+  if (fields.every((field) => field.value === "" && !field.validity.badInput)) return null;
+  if (fields.some((field) => field.value === "")) {
+    const pool = prefix === "c" ? "角色池" : "武器池";
+    throw new Error(`${pool}的四星角色数和武器数请一起填，也可以都留空。`);
+  }
+  return { characters: number(roleID), weapons: number(weaponID) };
+}
+
 function collect() {
   const mode = target();
   const character = mode !== "weapon";
@@ -151,6 +164,9 @@ function collect() {
   const farm = checked("farm");
   const profile = $("profile").value;
   const ownership = $("ownership-mode").value;
+  const useFive = ownership === "detail" || ownership === "fullFour" && checked("preset-use-five");
+  const fiveRoster = useFive ? readRoster("five", true) : [];
+  if (useFive && fiveRoster.length === 0) throw new Error("请至少填写一位常驻五星角色。");
   const five = profile === "custom"
     ? [parseCurve($("custom-character").value), parseCurve($("custom-weapon").value)]
     : [curves[profile], curves[profile]];
@@ -178,7 +194,8 @@ function collect() {
     ownership: {
       mode: ownership,
       four: ownership === "detail" ? readRoster("four", true) : [],
-      five: ownership === "detail" ? readRoster("five", true) : [],
+      five: fiveRoster,
+      fourPools: ownership === "fullFour" ? [readFourPool("c"), readFourPool("w")] : [null, null],
       weaponWeights: ownership === "detail" ? [number("c-weapon-weight"), number("w-weapon-weight")] : [0, 0],
     },
     rules: { five, fourMode: $("four-mode").value, fiveResetsFour: checked("five-resets-four") },
@@ -215,6 +232,11 @@ function sync() {
     $(id).textContent = checked("five-resets-four") ? "距上次四星或五星" : "距上次四星";
   }
   const ownership = $("ownership-mode").value;
+  const preset = ownership === "fullFour";
+  const useFive = checked("preset-use-five");
+  show("full-four-editor", preset);
+  show("preset-five-default", !useFive);
+  show("five-editor", ownership === "detail" || preset && useFive);
   show("roster-editor", ownership === "detail");
   $("ownership-description").textContent = ownershipLabels[ownership];
   const profile = $("profile").value;
@@ -253,9 +275,9 @@ function chart() {
   }
   chart.replaceChildren(fragments);
   const notes = {
-    empirical: "采用前三个版本约 1,500 万抽的公开分析。第 66、71、76 抽起分段上升，第 79 抽达到 100% 的拟合值。",
-    hard: "第 1 至 79 抽使用 0.8%，第 80 抽使用 100%。此情景用于比较软保底的影响。",
-    custom: "图中显示角色池曲线，武器池使用下方独立参数。",
+    empirical: "参考公开的约 1,500 万抽记录。按这组数据，第 66 抽起更容易出五星，第 79 抽出率达到 100%。",
+    hard: "第 1 到 79 抽都按 0.8%，第 80 抽必出。",
+    custom: "图里显示角色池。武器池按下方填写的数字计算。",
   };
   $("curve-note").textContent = notes[profile];
 }
@@ -315,9 +337,10 @@ function displayForecast(resources, probability, uncertainty) {
   if (resources.totalLimited) notes.push("含返还总量超出估算范围。");
   if (resources.planLimited) notes.push("未能估算达标余量。");
   else if (!resources.leftover) {
-    notes.push(probability.upper === "0" ? "当前方案无法达标。" : "模拟中达标的情况太少，暂未估算余量。");
+    notes.push(probability.upper === "0" ? "当前方案无法达标。" : "试算中成功的情况太少，暂时算不出余量。");
   }
   if (uncertainty === "bounds") notes.push("抽数按普通返还估算。");
+  if (uncertainty === "fullFourRange") notes.push("卡池数量未填全，抽数按较少返还估算。");
   $("draw-status").textContent = notes.join("") || "余量只统计成功的情况。";
 
   const ranges = [];
@@ -327,16 +350,16 @@ function displayForecast(resources, probability, uncertainty) {
   if (resources.leftover && resources.leftover.p10 !== resources.leftover.p90) {
     ranges.push(`达标后剩 ${drawCount(resources.leftover.p10)}–${drawCount(resources.leftover.p90)} 抽`);
   }
-  $("draw-spread").textContent = ranges.length ? `中间约八成的模拟结果为${ranges.join("、")}。` : "";
+  $("draw-spread").textContent = ranges.length ? `大约八成的情况为${ranges.join("、")}。` : "";
 
   const conditions = [];
   if (resources.meanWavebands > 0) {
     conditions.push(`达标时平均换了 ${drawCount(resources.meanWavebands)} 份频段。`);
   }
   if (resources.approximateOrder) {
-    conditions.push("部分步骤的最佳抽法仍不确定，抽数按应用能判断的抽法估算。");
+    conditions.push("部分时候先抽哪池都说不准，抽数按试算用的抽法估计。");
   }
-  conditions.push(`基于 ${drawCount(resources.trials)} 次模拟。`);
+  conditions.push(`共试算 ${drawCount(resources.trials)} 次。`);
   $("draw-conditions").textContent = conditions.join("");
   show("draw-method", true);
 }
@@ -359,7 +382,7 @@ function row(label, probability, meter = false) {
     bar.min = 0;
     bar.max = 1;
     bar.value = Number(BigInt(probability.lower)) / Number(scale);
-    bar.setAttribute("aria-label", `${label}的概率下界`);
+    bar.setAttribute("aria-label", `${label}的保守成功率`);
     wrapper.append(bar);
   }
   return wrapper;
@@ -399,6 +422,7 @@ function display(result, config, mode, profile, current) {
   const notes = [];
   if (grade.detail) notes.push(grade.detail + "。");
   if (result.uncertainty === "bounds") notes.push("持有量未知，重复返还有差别。");
+  if (result.uncertainty === "fullFourRange") notes.push("卡池里的四星数量未知，已考虑多返和少返两种情况。");
   if (result.rows.some((entry) => entry.incomplete)) notes.push("提高计算精细度，有机会缩小概率范围。");
   $("uncertainty").textContent = notes.join("");
 }
@@ -453,8 +477,7 @@ window.convene?.onProgress((progress) => {
     status("正在估算返还和抽数…");
     return;
   }
-  const count = progress.states.toLocaleString("zh-CN");
-  status(`正在计算${strategies[progress.strategy]} · 已看过 ${count} 种情况`);
+  status(`正在算「${strategies[progress.strategy]}」…`);
 });
 form.addEventListener("input", changed);
 document.querySelectorAll(".nav-button").forEach((button) => {

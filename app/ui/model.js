@@ -20,12 +20,12 @@ const TideModel = (() => {
 
   function parseCurve(input) {
     const values = input.trim().split(/[\s,，、]+/);
-    if (values.length !== 80) throw new Error("每条自定义曲线须填写 80 项。");
+    if (values.length !== 80) throw new Error("每个卡池请填 80 个出率。");
     const parsed = values.map((value, index) => {
       const match = /^(\d{1,3})(?:\.(\d{1,7}))?%?$/.exec(value);
-      if (!match) throw new Error(`曲线第 ${index + 1} 项须为百分数，最多 7 位小数。`);
+      if (!match) throw new Error(`第 ${index + 1} 抽请填百分数，最多 7 位小数。`);
       const exact = Number(match[1]) * 10_000_000 + Number((match[2] ?? "").padEnd(7, "0"));
-      if (exact > 1_000_000_000) throw new Error(`曲线第 ${index + 1} 项超出 100%。`);
+      if (exact > 1_000_000_000) throw new Error(`第 ${index + 1} 抽的出率超出 100%。`);
       return exact;
     });
     if (parsed.at(-1) !== 1_000_000_000) throw new Error("第 80 项必须是 100%。");

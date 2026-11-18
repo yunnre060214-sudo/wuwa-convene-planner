@@ -37,6 +37,29 @@ type roster struct {
 }
 
 func newRoster(input Ownership, mode string) *roster {
+	if mode == fullFourPreset || mode == fullFourHigh {
+		// Saturated four-stars all pay the same reward within each item type.
+		// A single synthetic character can stand in for each bucket's roster.
+		input.Four = []Character4{{Owned: 7, Up: true}, {Owned: 7}}
+		for pool, counts := range input.FourPools {
+			var roles, weapons int
+			switch {
+			case counts != nil:
+				roles, weapons = counts.offBanner(pool)
+			case mode == fullFourHigh:
+				roles = 1
+			default:
+				weapons = 1
+			}
+			if pool == character {
+				input.Four[1].CharacterWeight = roles
+			} else {
+				input.Four[1].WeaponWeight = roles
+			}
+			input.WeaponWeights[pool] = weapons
+		}
+		mode = "detail"
+	}
 	r := &roster{mode: mode}
 	if mode != "detail" {
 		return r
@@ -109,6 +132,11 @@ func (r *roster) rolls(hold uint32, bucket int) []item {
 	}
 	layout := r.layout[hold]
 	total := r.weights[bucket] + r.weapons[bucket]
+	if total == 0 {
+		// The full-four preset uses ordinary off-banner five-star refunds
+		// when the player has left those characters unspecified.
+		return []item{{hold, base, one}}
+	}
 	results := make([]item, 0, 8)
 	if weight := r.weapons[bucket]; weight != 0 {
 		results = append(results, item{hold, base, fraction(uint64(weight), uint64(total))})

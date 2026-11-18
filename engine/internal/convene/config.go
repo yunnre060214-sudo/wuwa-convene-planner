@@ -11,6 +11,9 @@ const (
 )
 
 const (
+	fullFourPreset = "fullFour"
+	fullFourHigh   = "fullFourHigh"
+	featuredFour   = 3
 	partPerBillion = 1_000_000_000
 	maxStates      = 8_000_000
 	wavebandCost   = 360
@@ -61,11 +64,24 @@ type Character5 struct {
 	Owned int    `json:"owned"`
 }
 
+type FourStarCounts struct {
+	Characters int `json:"characters"`
+	Weapons    int `json:"weapons"`
+}
+
+func (f FourStarCounts) offBanner(pool int) (characters, weapons int) {
+	if pool == character {
+		return f.Characters - featuredFour, f.Weapons
+	}
+	return f.Characters, f.Weapons - featuredFour
+}
+
 type Ownership struct {
-	Mode          string       `json:"mode"`
-	Four          []Character4 `json:"four"`
-	Five          []Character5 `json:"five"`
-	WeaponWeights [2]int       `json:"weaponWeights"`
+	Mode          string             `json:"mode"`
+	Four          []Character4       `json:"four"`
+	Five          []Character5       `json:"five"`
+	WeaponWeights [2]int             `json:"weaponWeights"`
+	FourPools     [2]*FourStarCounts `json:"fourPools"`
 }
 
 type Rules struct {
@@ -102,7 +118,7 @@ func (c Config) Validate() error {
 		}
 		pool := c.Pools[p]
 		if !in(pool.Pity5, 0, 79) || !in(pool.Pity4, 0, 9) || pool.Pity4 > pool.Pity5 && c.Rules.FiveResetsFour {
-			return errors.New("请检查垫抽数。五星为 0–79，四星为 0–9。五星清零模型中四星垫抽不超过五星")
+			return errors.New("请检查垫抽数。五星为 0–79，四星为 0–9。五星会重置四星保底时，四星抽数不能多于五星抽数")
 		}
 		five := c.Rules.Five[p]
 		if len(five) != 80 || five[79] != partPerBillion {
@@ -131,20 +147,35 @@ func (c Config) Validate() error {
 		return errors.New("未知的抽取策略")
 	}
 	if !in(c.StateBudget, 10_000, maxStates) {
-		return errors.New("状态预算须在 10,000 至 8,000,000 之间")
+		return errors.New("请选择有效的计算精细度")
 	}
 	switch c.Ownership.Mode {
 	case "bounds", "normal", "maxed":
 		return nil
+	case fullFourPreset:
+		for pool, counts := range c.Ownership.FourPools {
+			if counts == nil {
+				continue
+			}
+			roles, weapons := counts.offBanner(pool)
+			if !in(roles, 0, 64) || !in(weapons, 0, 64) ||
+				counts.Characters > 64 || counts.Weapons > 64 || roles+weapons == 0 {
+				return errors.New("请核对卡池的四星总数，包含当期 UP，也要有能抽到的非 UP 四星")
+			}
+		}
+		return validateFive(c.Ownership.Five, false)
 	case "detail":
+		if len(c.Ownership.Four) > 64 {
+			return errors.New("最多填写 64 位四星角色")
+		}
+		if err := validateFive(c.Ownership.Five, true); err != nil {
+			return err
+		}
 		up := 0
 		var characterWeight, weaponWeight int
-		if len(c.Ownership.Four) > 64 || len(c.Ownership.Five) < 1 || len(c.Ownership.Five) > 32 {
-			return errors.New("四星角色最多 64 位，常驻五星角色须为 1 至 32 位")
-		}
 		for _, item := range c.Ownership.Four {
 			if !in(item.Owned, 0, 7) || !in(item.CharacterWeight, 0, 1000) || !in(item.WeaponWeight, 0, 1000) {
-				return errors.New("四星持有份数须为 0–7，掉落权重须为 0–1000")
+				return errors.New("四星持有份数请填 0–7，卡池栏请填 0–1000")
 			}
 			if item.Up {
 				up++
@@ -153,23 +184,44 @@ func (c Config) Validate() error {
 			}
 			weaponWeight += item.WeaponWeight
 		}
-		for _, item := range c.Ownership.Five {
-			if !in(item.Owned, 0, 7) {
-				return errors.New("常驻五星持有份数须为 0–7")
-			}
-		}
-		if up != 3 {
-			return errors.New("逐位追踪时须指定 3 位角色池 UP 四星")
+		if up != featuredFour {
+			return errors.New("请勾选角色池当期的 3 位 UP 四星")
 		}
 		weights := c.Ownership.WeaponWeights
 		if !in(weights[0], 0, 64_000) || !in(weights[1], 0, 64_000) ||
 			characterWeight+weights[0] == 0 || weaponWeight+weights[1] == 0 {
-			return errors.New("每池的非 UP 四星总权重须大于 0，武器总权重须为 0–64000")
+			return errors.New("每池至少要填一种能抽到的非 UP 四星，武器合计请填 0–64000")
 		}
 		return nil
 	default:
-		return errors.New("未知的持有量配置")
+		return errors.New("请选择角色持有情况")
 	}
+}
+
+func validateFive(five []Character5, required bool) error {
+	if len(five) > 32 || required && len(five) == 0 {
+		return errors.New("请填写 1–32 位常驻五星角色")
+	}
+	for _, item := range five {
+		if !in(item.Owned, 0, 7) {
+			return errors.New("常驻五星持有份数请填 0–7")
+		}
+	}
+	return nil
+}
+
+func (c Config) needsFourRange(strategy string) bool {
+	if c.Ownership.Mode != fullFourPreset {
+		return false
+	}
+	useSpare := c.Farm && strategy == "optimal"
+	selected := [2]bool{c.Goals.Character > 0, c.Goals.Weapon > 0}
+	for pool, counts := range c.Ownership.FourPools {
+		if counts == nil && (selected[pool] || useSpare && c.Resources.Tides[pool] > 0) {
+			return true
+		}
+	}
+	return false
 }
 
 func (g Goals) remaining() [2]uint8 {

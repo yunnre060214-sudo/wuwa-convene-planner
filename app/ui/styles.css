@@ -73,6 +73,7 @@ input[type=checkbox], input[type=radio] { accent-color: #4d7446; }
 .check { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #354b3e; font-size: 12px; cursor: pointer; }
 .check input { margin: 0; width: 15px; height: 15px; flex: none; }
 .inline-details { margin-top: 13px; padding-top: 9px; border-top: 1px solid var(--border); }
+.rule-details > summary { font-size: 13px; }
 summary { color: #365940; font-weight: 620; font-size: 12px; cursor: pointer; }
 .inline-details .pair, .detail-field, #shop-field { margin-top: 10px; }
 .coral-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
@@ -129,7 +130,6 @@ meter::-webkit-meter-bar { border: 0; background: #edf1e7; border-radius: 10px; 
 meter::-webkit-meter-optimum-value { background: #6a925b; border-radius: 10px; }
 .baseline-row { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid var(--border); padding-top: 7px; color: var(--subtle); font-size: 12px; }
 .result-note { color: var(--subtle); margin: 9px 2px; font-size: 11px; line-height: 1.55; }
-#roster-editor { display: grid; gap: 14px; }
 .five-roster { display: grid; gap: 6px; margin: 10px 0 0; }
 .five-entry { display: grid; grid-template-columns: minmax(0, 1fr) 78px auto; gap: 6px; align-items: center; }
 .table-wrap { overflow: auto; }

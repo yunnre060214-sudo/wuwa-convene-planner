@@ -475,11 +475,17 @@ func solveScenario(c Config, strategy, scenario string, refund bool, forecast *R
 }
 
 func combined(c Config, strategy string, forecast *ResourceForecast, progress func(Progress)) solved {
-	if c.Ownership.Mode != "bounds" {
+	var lowerScenario, upperScenario string
+	switch {
+	case c.Ownership.Mode == "bounds":
+		lowerScenario, upperScenario = "normal", "maxed"
+	case c.needsFourRange(strategy):
+		lowerScenario, upperScenario = fullFourPreset, fullFourHigh
+	default:
 		return solveScenario(c, strategy, c.Ownership.Mode, true, forecast, progress)
 	}
-	low := solveScenario(c, strategy, "normal", true, forecast, progress)
-	high := solveScenario(c, strategy, "maxed", true, nil, progress)
+	low := solveScenario(c, strategy, lowerScenario, true, forecast, progress)
+	high := solveScenario(c, strategy, upperScenario, true, nil, progress)
 	for a, l := range low.actions {
 		if h, ok := high.actions[a]; ok {
 			low.actions[a] = interval{l.lo, h.hi}
@@ -512,6 +518,9 @@ func Calculate(c Config, progress func(Progress)) (Result, error) {
 		}
 	}
 	result := Result{Uncertainty: c.Ownership.Mode}
+	if c.needsFourRange(c.Strategy) {
+		result.Uncertainty = "fullFourRange"
+	}
 	for _, strategy := range strategies {
 		var forecast *ResourceForecast
 		if strategy == c.Strategy {
