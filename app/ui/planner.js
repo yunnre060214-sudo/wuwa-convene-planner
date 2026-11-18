@@ -4,18 +4,18 @@ const $ = (id) => document.getElementById(id);
 const form = $("planner");
 form.noValidate = true;
 const storageKey = "tide-planner-1";
-const { curves, strategies, scale, parseCurve, formatProbability } = TideModel;
+const { curves, strategies, scale, parseCurve, formatProbability, probabilityGrade, availableDraws } = TideModel;
 const futureLabels = {
-  character: "角色池单抽", weapon: "武器池单抽", waveband: "兑换角色回音频段",
+  character: "先抽角色", weapon: "先抽武器", waveband: "先换共鸣链",
 };
 const ownershipLabels = {
-  bounds: "下界用普通返还。上界用可能的最大返还，包含非 UP 四星物品可能为溢出角色的情形。",
-  normal: "其他四星角色每份按 3 珊瑚，非 UP 五星每份按 45 珊瑚。此设定给出保守情景。",
-  maxed: "可能获得的其他角色按溢出返还，未知非 UP 四星类型取较大的返还。此设定给出乐观情景。",
-  detail: "按名单、权重和已有份数模拟每次重复获取。模板只包含 3 个四星 UP 位，请补全各池名单和武器权重。",
+  bounds: "用普通和较多两种返还情况，估出成功率可能落在的范围。",
+  normal: "假设其他角色重复时按普通数量返还。",
+  maxed: "按重复角色可能返还的最多数量计算。",
+  detail: "根据每个角色的持有份数处理返还。请补全两池名单和掉落权重。",
 };
-const profileLabels = { empirical: "实测拟合模型", hard: "仅硬保底情景", custom: "自定义五星曲线" };
-const pageTitles = { plan: "配置抽取计划", ownership: "配置角色持有量", model: "审查概率模型" };
+const profileLabels = { empirical: "参考社区实测", hard: "只算第 80 抽保底", custom: "自定义保底" };
+const pageTitles = { plan: "抽取计划", ownership: "角色持有量", model: "计算设置" };
 const appFields = Array.from(form.querySelectorAll("[id]")).filter((field) =>
   field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement
 );
@@ -132,6 +132,16 @@ function readRoster(category, validate = false) {
   });
 }
 
+function readWallet() {
+  return {
+    astrite: number("astrite"), lunite: number("lunite"),
+    tides: [number("radiant"), number("forging")],
+    afterglow: number("afterglow"), oscillated: number("oscillated"),
+    oscStock: [number("radiant-stock"), number("forging-stock")],
+    spendAfterglow: checked("spend-afterglow"),
+  };
+}
+
 function collect() {
   const mode = target();
   const character = mode !== "weapon";
@@ -155,13 +165,7 @@ function collect() {
     ? $("target-copies").value === "" ? held : number("target-copies")
     : 0;
   return {
-    resources: {
-      astrite: number("astrite"), lunite: number("lunite"),
-      tides: [number("radiant"), number("forging")],
-      afterglow: number("afterglow"), oscillated: number("oscillated"),
-      oscStock: [number("radiant-stock"), number("forging-stock")],
-      spendAfterglow: checked("spend-afterglow"),
-    },
+    resources: readWallet(),
     goals: {
       character: character ? chain ? Number($("character-chain").value) : number("character-copies") : 0,
       weapon: weapon ? rank ? Number($("weapon-rank").value) : number("weapon-copies") : 0,
@@ -204,7 +208,12 @@ function sync() {
   show("character-pool", character || farm);
   show("weapon-pool", weapon || farm);
   show("shop-field", character && chain);
+  show("shop-hint", !character || !chain);
+  show("coral-shared", character && chain);
   show("compare-field", mode === "joint");
+  for (const id of ["c4-label", "w4-label"]) {
+    $(id).textContent = checked("five-resets-four") ? "距上次四星或五星" : "距上次四星";
+  }
   const ownership = $("ownership-mode").value;
   show("roster-editor", ownership === "detail");
   $("ownership-description").textContent = ownershipLabels[ownership];
@@ -214,8 +223,15 @@ function sync() {
     $("result-label").textContent = ({ joint: "联合成功概率", character: "角色成功概率", weapon: "武器成功概率" })[mode];
     $("result-rule").textContent = profileLabels[profile];
   }
-  const stars = Math.floor(((Number($("astrite").value) || 0) + (Number($("lunite").value) || 0)) / 160);
-  $("shared-count").textContent = `星声与月相可换 ${stars.toLocaleString("zh-CN")} 抽`;
+  try {
+    const wallet = readWallet();
+    const count = availableDraws(wallet, mode, farm && $("strategy").value === "optimal");
+    $("draw-now").textContent = `${drawCount(count.total)} 抽`;
+    $("draw-breakdown").textContent = `波纹 ${drawCount(count.tides)} 抽、星声与月相 ${drawCount(count.astrite)} 抽、残振珊瑚 ${drawCount(count.oscillated)} 抽、余波珊瑚 ${drawCount(count.afterglow)} 抽。`;
+  } catch {
+    $("draw-now").textContent = "—";
+    $("draw-breakdown").textContent = "填好手头资源和兑换库存后显示。";
+  }
 }
 
 function chart() {
@@ -278,12 +294,60 @@ function status(text, error = false) {
   $("status").classList.toggle("error", error);
 }
 
+function drawCount(value) {
+  return value.toLocaleString("zh-CN", { maximumFractionDigits: 1 });
+}
+
+function clearForecast() {
+  $("draw-total").textContent = "—";
+  $("draw-leftover").textContent = "—";
+  show("draw-method", false);
+  $("draw-status").textContent = hasResult ? "重新计算后更新返还和余量。" : "计算后显示返还和余量。";
+}
+
+function displayForecast(resources, probability, uncertainty) {
+  const estimate = (value) => value ? `约 ${drawCount(value.mean)} 抽` : "—";
+  $("draw-now").textContent = `${drawCount(resources.available)} 抽`;
+  $("draw-total").textContent = estimate(resources.total);
+  $("draw-leftover").textContent = estimate(resources.leftover);
+
+  const notes = [];
+  if (resources.totalLimited) notes.push("含返还总量超出估算范围。");
+  if (resources.planLimited) notes.push("未能估算达标余量。");
+  else if (!resources.leftover) {
+    notes.push(probability.upper === "0" ? "当前方案无法达标。" : "模拟中达标的情况太少，暂未估算余量。");
+  }
+  if (uncertainty === "bounds") notes.push("抽数按普通返还估算。");
+  $("draw-status").textContent = notes.join("") || "余量只统计成功的情况。";
+
+  const ranges = [];
+  if (resources.total && resources.total.p10 !== resources.total.p90) {
+    ranges.push(`含返还 ${drawCount(resources.total.p10)}–${drawCount(resources.total.p90)} 抽`);
+  }
+  if (resources.leftover && resources.leftover.p10 !== resources.leftover.p90) {
+    ranges.push(`达标后剩 ${drawCount(resources.leftover.p10)}–${drawCount(resources.leftover.p90)} 抽`);
+  }
+  $("draw-spread").textContent = ranges.length ? `中间约八成的模拟结果为${ranges.join("、")}。` : "";
+
+  const conditions = [];
+  if (resources.meanWavebands > 0) {
+    conditions.push(`达标时平均换了 ${drawCount(resources.meanWavebands)} 份频段。`);
+  }
+  if (resources.approximateOrder) {
+    conditions.push("部分步骤的最佳抽法仍不确定，抽数按应用能判断的抽法估算。");
+  }
+  conditions.push(`基于 ${drawCount(resources.trials)} 次模拟。`);
+  $("draw-conditions").textContent = conditions.join("");
+  show("draw-method", true);
+}
+
 function changed(event) {
   revision++;
   const id = event?.target?.id;
   sync();
   if (["profile", "custom-character"].includes(id)) chart();
   save();
+  clearForecast();
   if (hasResult && !running) status("配置已变化，请重新计算。");
 }
 
@@ -301,7 +365,7 @@ function row(label, probability, meter = false) {
   return wrapper;
 }
 
-function display(result, config, mode, profile) {
+function display(result, config, mode, profile, current) {
   hasResult = true;
   const picked = result.rows.find((entry) => entry.strategy === config.strategy) ?? result.rows[0];
   const probability = formatProbability(picked.probability);
@@ -309,8 +373,15 @@ function display(result, config, mode, profile) {
   $("probability").classList.toggle("range", probability.range);
   $("result-label").textContent = ({ joint: "联合成功概率", character: "角色成功概率", weapon: "武器成功概率" })[mode];
   $("result-rule").textContent = profileLabels[profile];
-  const conditional = result.uncertainty === "bounds" ? "持有量区间" : "按所选持有量";
-  $("result-detail").textContent = `${strategies[picked.strategy]} · ${picked.incomplete ? "含搜索误差界" : conditional}`;
+  const grade = probabilityGrade(picked.probability);
+  const gradeLabel = $("luck-grade");
+  gradeLabel.textContent = grade.label;
+  gradeLabel.dataset.tone = grade.tone;
+  gradeLabel.title = grade.detail ?? "";
+  show("luck-grade", true);
+  $("result-detail").textContent = strategies[picked.strategy];
+  if (current) displayForecast(result.resources, picked.probability, result.uncertainty);
+  else clearForecast();
   show("comparison", result.rows.length > 1 || Boolean(picked.baseline));
   $("comparison-title").textContent = result.rows.length > 1 ? "策略对比" : "回流影响";
   $("comparison-rows").replaceChildren(...result.rows.map((entry) => row(strategies[entry.strategy], entry.probability, true)));
@@ -322,13 +393,13 @@ function display(result, config, mode, profile) {
   ));
   show("advice", actions.length > 1);
   $("advice-note").textContent = best
-    ? `优先：${futureLabels[best.id]}`
-    : "区间重叠时，当前假设与搜索精度尚不能判定唯一的最优首步。";
+    ? futureLabels[best.id]
+    : "目前看不出哪一步更有把握。";
   $("advice-rows").replaceChildren(...actions.map((entry) => row(futureLabels[entry.id], entry.probability)));
   const notes = [];
-  if (result.uncertainty === "bounds") notes.push("持有量上下界反映未知的重复返还。");
-  if (result.rows.some((entry) => entry.incomplete)) notes.push("区间包含未展开状态的误差界。提高搜索上限可尝试收紧。");
-  if (profile !== "custom") notes.push("结果依赖所选五星曲线。");
+  if (grade.detail) notes.push(grade.detail + "。");
+  if (result.uncertainty === "bounds") notes.push("持有量未知，重复返还有差别。");
+  if (result.rows.some((entry) => entry.incomplete)) notes.push("提高计算精细度，有机会缩小概率范围。");
   $("uncertainty").textContent = notes.join("");
 }
 
@@ -351,14 +422,15 @@ form.addEventListener("submit", async (event) => {
   running = true;
   $("calculate").disabled = true;
   show("cancel", true);
-  status("正在展开抽取与兑换状态…");
+  status("正在计算成功率…");
   try {
     const outcome = await window.convene.calculate(config);
     if (outcome.cancelled) status("计算已停止。");
     else if (outcome.error) status(outcome.error, true);
     else {
-      display(outcome.result, config, mode, profile);
-      status(started === revision ? "计算完成" : "计算对应开始时的配置，请重新计算最新设置。");
+      const current = started === revision;
+      display(outcome.result, config, mode, profile, current);
+      status(current ? "计算完成" : "设置有改动，请重新计算。");
     }
   } catch (error) {
     status(`计算失败：${error.message}`, true);
@@ -377,10 +449,12 @@ $("cancel").addEventListener("click", () => {
 });
 window.convene?.onProgress((progress) => {
   if (!running || $("cancel").disabled) return;
-  const kind = { normal: "普通返还", maxed: "溢出上界", detail: "逐位追踪", baseline: "无新增回流" }[progress.scenario];
+  if (progress.forecast) {
+    status("正在估算返还和抽数…");
+    return;
+  }
   const count = progress.states.toLocaleString("zh-CN");
-  const step = progress.layers ? `第 ${progress.layer} 步 · 已展开 ${count} 状态` : `${count} / ${progress.budget.toLocaleString("zh-CN")} 状态`;
-  status(`${strategies[progress.strategy]} / ${kind} · ${step}`);
+  status(`正在计算${strategies[progress.strategy]} · 已看过 ${count} 种情况`);
 });
 form.addEventListener("input", changed);
 document.querySelectorAll(".nav-button").forEach((button) => {

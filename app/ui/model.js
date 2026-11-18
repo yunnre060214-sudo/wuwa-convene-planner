@@ -15,7 +15,7 @@ const TideModel = (() => {
   const strategies = {
     characterFirst: "角色优先",
     weaponFirst: "武器优先",
-    optimal: "逐抽动态最优",
+    optimal: "看情况切换",
   };
 
   function parseCurve(input) {
@@ -55,5 +55,40 @@ const TideModel = (() => {
     return { text: `${scalar(lo)}–${scalar(hi)}`, range: true };
   }
 
-  return { scale, curves, strategies, parseCurve, formatProbability };
+  const grades = [
+    { below: 5n, label: "梦里什么都有", tone: "low" },
+    { below: 25n, label: "欧皇附体才有戏", tone: "low" },
+    { below: 50n, label: "还得拼手气", tone: "warm" },
+    { below: 75n, label: "有戏", tone: "warm" },
+    { below: 90n, label: "胜算挺大", tone: "good" },
+    { below: 101n, label: "基本稳了", tone: "good" },
+  ];
+
+  function probabilityGrade(probability) {
+    const lower = BigInt(probability.lower);
+    const upper = BigInt(probability.upper);
+    if (upper === 0n) return { label: "当前方案无法达标", tone: "low" };
+    if (lower === scale) return { label: "稳稳拿下", tone: "good" };
+    const gradeAt = (value) => grades.find(({ below }) => value * 100n < below * scale);
+    if ((upper - lower) * 10_000_000n < scale) return gradeAt((lower + upper) / 2n);
+    const first = gradeAt(lower);
+    const last = gradeAt(upper);
+    return first === last ? first : {
+      label: "概率跨档",
+      tone: "neutral",
+      detail: `从「${first.label}」到「${last.label}」`,
+    };
+  }
+
+  function availableDraws(resources, mode, useSpare) {
+    const selected = [mode !== "weapon", mode !== "character"];
+    const astrite = Math.floor((resources.astrite + resources.lunite) / 160);
+    const tides = resources.tides.reduce((sum, count, pool) => sum + (selected[pool] || useSpare ? count : 0), 0);
+    const stock = resources.oscStock.reduce((sum, count, pool) => sum + (selected[pool] ? count : 0), 0);
+    const oscillated = Math.min(Math.floor(resources.oscillated / 70), stock);
+    const afterglow = resources.spendAfterglow ? Math.floor(resources.afterglow / 8) : 0;
+    return { astrite, tides, oscillated, afterglow, total: astrite + tides + oscillated + afterglow };
+  }
+
+  return { scale, curves, strategies, parseCurve, formatProbability, probabilityGrade, availableDraws };
 })();

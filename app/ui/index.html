@@ -16,13 +16,13 @@
       <nav aria-label="配置导航">
         <button type="button" class="nav-button active" data-page="plan" aria-current="page"><span aria-hidden="true">◈</span>资源与目标</button>
         <button type="button" class="nav-button" data-page="ownership"><span aria-hidden="true">▤</span>角色持有量</button>
-        <button type="button" class="nav-button" data-page="model"><span aria-hidden="true">⌁</span>概率与假设</button>
+        <button type="button" class="nav-button" data-page="model"><span aria-hidden="true">⌁</span>计算设置</button>
       </nav>
-      <footer>本机计算 · 离线可用 <span>1.0</span></footer>
+      <footer>本机计算 · 离线可用 <span>1.1</span></footer>
     </aside>
     <main>
       <header class="toolbar">
-        <div><p>通用限定角色池与武器池</p><h1 id="page-title">配置抽取计划</h1></div>
+        <div><p>通用限定角色池与武器池</p><h1 id="page-title">抽取计划</h1></div>
         <button id="example" type="button" class="quiet-button">载入示例</button>
       </header>
       <div class="workspace">
@@ -44,7 +44,7 @@
                     <label class="field" id="character-copy-field">新增份数<input id="character-copies" type="number" min="1" max="30" value="1" required></label>
                     <label class="field" id="character-chain-field" hidden>目标共鸣链<select id="character-chain"></select></label>
                     <label class="field" id="character-owned-field" hidden>已有角色及共鸣链<select id="character-owned"></select></label>
-                    <label class="field" id="target-copies-field">目标角色已计份数<input id="target-copies" type="number" min="0" max="7" placeholder="自动"></label>
+                    <label class="field" id="target-copies-field">已获得份数（最多填 7）<input id="target-copies" type="number" min="0" max="7" placeholder="自动"></label>
                   </div>
                 </div>
                 <div id="weapon-goal">
@@ -61,7 +61,7 @@
             </section>
 
             <section class="card" aria-labelledby="resources-title">
-              <div class="section-heading"><h2 id="resources-title">可投入资源</h2><span id="shared-count">星声可换 0 抽</span></div>
+              <h2 id="resources-title">手头资源</h2>
               <div class="resource-grid">
                 <label class="field"><span><i class="dot astrite"></i>星声</span><input id="astrite" type="number" min="0" max="100000000" value="0" required></label>
                 <label class="field"><span><i class="dot lunite"></i>月相</span><input id="lunite" type="number" min="0" max="100000000" value="0" required></label>
@@ -70,58 +70,69 @@
                 <label class="field"><span><i class="dot afterglow"></i>余波珊瑚</span><input id="afterglow" type="number" min="0" max="100000000" value="0" required></label>
                 <label class="field"><span><i class="dot oscillated"></i>残振珊瑚</span><input id="oscillated" type="number" min="0" max="100000000" value="0" required></label>
               </div>
+              <div class="coral-options">
+                <div class="coral-option">
+                  <label class="check"><input type="checkbox" id="spend-afterglow" checked>余波珊瑚换抽数</label>
+                  <p class="help">8 个换 1 抽</p>
+                </div>
+                <div class="coral-option">
+                  <strong>余波珊瑚换共鸣链</strong>
+                  <p class="help">360 个换 1 份频段</p>
+                  <div id="shop-field" hidden>
+                    <label class="field">剩余可换份数<input type="number" id="wavebands" min="0" max="2" value="0" required></label>
+                  </div>
+                  <p id="shop-hint" class="help">将角色目标设为共鸣链后可用。</p>
+                </div>
+              </div>
+              <p id="coral-shared" class="help" hidden>两种用法共用余波珊瑚。先拥有角色，才能换频段。</p>
               <details class="inline-details">
-                <summary>兑换库存与回音频段</summary>
+                <summary>残振珊瑚可换次数</summary>
                 <div class="pair">
-                  <label class="field">残振库存 · 浮金波纹<input type="number" id="radiant-stock" min="0" max="7" value="7" required></label>
-                  <label class="field">残振库存 · 铸潮波纹<input type="number" id="forging-stock" min="0" max="7" value="7" required></label>
+                  <label class="field">浮金波纹剩余库存<input type="number" id="radiant-stock" min="0" max="7" value="7" required></label>
+                  <label class="field">铸潮波纹剩余库存<input type="number" id="forging-stock" min="0" max="7" value="7" required></label>
                 </div>
-                <label class="check"><input type="checkbox" id="spend-afterglow" checked>允许以 8 余波珊瑚兑换 1 抽</label>
-                <div id="shop-field" hidden>
-                  <label class="field">可买的目标回音频段<input type="number" id="wavebands" min="0" max="2" value="0" required></label>
-                  <p class="help">每个 360 余波珊瑚，持有目标角色后可购买。目标角色已计份数留空时，按已有共鸣链或未持有计算。</p>
-                </div>
-                <p class="help">每 70 残振珊瑚换 1 抽，请填写当前商店剩余库存。唤声涡纹仅用于常驻类卡池。</p>
+                <p class="help">70 个残振珊瑚换 1 抽。按当前商店的剩余库存填写。</p>
               </details>
             </section>
 
             <section class="card" aria-labelledby="pity-title">
               <h2 id="pity-title">保底进度</h2>
-              <p class="help">按各池记录填写。五星后四星垫抽也归零时，从最近的四星或五星往后数。</p>
+              <p class="help">填写各池距离上次出货的抽数。拿到五星通常也会重置四星的抽数。</p>
               <div class="two-column" id="pool-settings">
                 <fieldset id="character-pool"><legend>角色活动唤取</legend>
                   <div class="pair">
-                    <label class="field">五星垫抽<input id="c5" type="number" min="0" max="79" value="0" required></label>
-                    <label class="field">四星垫抽<input id="c4" type="number" min="0" max="9" value="0" required></label>
+                    <label class="field">距上次五星<input id="c5" type="number" min="0" max="79" value="0" required></label>
+                    <label class="field"><span id="c4-label">距上次四星或五星</span><input id="c4" type="number" min="0" max="9" value="0" required></label>
                   </div>
-                  <label class="check"><input id="c-up5" type="checkbox">下个五星必为 UP</label>
-                  <label class="check"><input id="c-up4" type="checkbox">下个四星必为 UP</label>
+                  <label class="check"><input id="c-up5" type="checkbox">下个五星必出目标角色</label>
+                  <label class="check"><input id="c-up4" type="checkbox">下个四星必出当期四星</label>
                 </fieldset>
                 <fieldset id="weapon-pool"><legend>武器活动唤取</legend>
                   <div class="pair">
-                    <label class="field">五星垫抽<input id="w5" type="number" min="0" max="79" value="0" required></label>
-                    <label class="field">四星垫抽<input id="w4" type="number" min="0" max="9" value="0" required></label>
+                    <label class="field">距上次五星<input id="w5" type="number" min="0" max="79" value="0" required></label>
+                    <label class="field"><span id="w4-label">距上次四星或五星</span><input id="w4" type="number" min="0" max="9" value="0" required></label>
                   </div>
-                  <p class="help weapon-guarantee">五星必为当期 UP 武器</p>
-                  <label class="check"><input id="w-up4" type="checkbox">下个四星必为 UP</label>
+                  <p class="help weapon-guarantee">五星必出目标武器</p>
+                  <label class="check"><input id="w-up4" type="checkbox">下个四星必出当期四星</label>
                 </fieldset>
               </div>
             </section>
 
             <section class="card" aria-labelledby="strategy-title">
-              <h2 id="strategy-title">抽取策略</h2>
-              <div class="pair">
-                <label class="field">结果优先显示
-                  <select id="strategy"><option value="optimal">逐抽动态最优</option><option value="characterFirst">角色优先</option><option value="weaponFirst">武器优先</option></select>
+              <h2 id="strategy-title">怎么抽</h2>
+              <label class="field">抽取顺序
+                <select id="strategy"><option value="optimal">看情况切换</option><option value="characterFirst">角色优先</option><option value="weaponFirst">武器优先</option></select>
+              </label>
+              <label class="check" id="compare-field"><input type="checkbox" id="compare" checked>比较三种抽法</label>
+              <details class="inline-details">
+                <summary>更多选项</summary>
+                <label class="field detail-field">计算精细度
+                  <select id="state-budget"><option value="100000">快速</option><option value="800000">适中</option><option value="3000000">细致</option><option value="8000000">尽量算全（更慢）</option></select>
                 </label>
-                <label class="field">搜索状态上限
-                  <select id="state-budget"><option value="100000">10 万</option><option value="800000">80 万</option><option value="3000000">300 万</option><option value="8000000">800 万 · 保留小概率</option></select>
-                </label>
-              </div>
-              <label class="check" id="compare-field"><input type="checkbox" id="compare" checked>比较两种固定顺序与动态策略</label>
-              <label class="check"><input type="checkbox" id="baseline" checked>显示无新增回流的基线</label>
-              <label class="check"><input type="checkbox" id="farm">允许动态策略用另一池剩余专用券补回流</label>
-              <p class="help">固定顺序先完成首选目标再换池。动态策略可每抽更换卡池，并在共鸣链目标中择机购买频段。</p>
+                <label class="check"><input type="checkbox" id="baseline" checked>对比不算本次返还</label>
+                <label class="check"><input type="checkbox" id="farm">看情况切换时，可用另一池的专用波纹赚返还</label>
+                <p class="help">角色或武器优先会先抽完选定的一边。看情况切换会按已抽出的结果决定下一抽。</p>
+              </details>
             </section>
           </div>
 
@@ -131,10 +142,10 @@
               <p class="help intro">同一角色第 8 份起会多返还余波珊瑚。两池均可能掉落的四星角色共用持有计数。</p>
               <label class="field">其他角色的持有量
                 <select id="ownership-mode">
-                  <option value="bounds">持有量未知 · 计算上下界</option>
-                  <option value="normal">假设全部按普通返还</option>
-                  <option value="maxed">假设全部按溢出上界返还</option>
-                  <option value="detail">按角色逐位追踪</option>
+                  <option value="bounds">不知道 · 显示概率范围</option>
+                  <option value="normal">按普通返还计算</option>
+                  <option value="maxed">按较多返还计算</option>
+                  <option value="detail">逐个填写角色持有量</option>
                 </select>
               </label>
               <p id="ownership-description" class="help"></p>
@@ -170,8 +181,8 @@
               <p class="help intro">官方公布基础概率 0.8% 和 80 抽上限。游戏服务端的逐抽曲线未公开，结果依赖这里选定的曲线。</p>
               <label class="field">保底模型
                 <select id="profile">
-                  <option value="empirical">社区实测拟合 · 第 66 抽起提升</option>
-                  <option value="hard">仅施加第 80 抽硬保底</option>
+                  <option value="empirical">参考社区实测 · 第 66 抽起提升</option>
+                  <option value="hard">只在第 80 抽保底</option>
                   <option value="custom">自定义角色与武器曲线</option>
                 </select>
               </label>
@@ -208,18 +219,37 @@
             <div class="orbit" aria-hidden="true"></div>
             <div class="result-label"><i></i><span id="result-label">联合成功概率</span></div>
             <output id="probability" for="astrite radiant forging">—</output>
-            <p id="result-detail">等待计算</p>
-            <div class="hero-footer"><span>从当前资源出发</span><span id="result-rule">实测拟合模型</span></div>
+            <div class="grade-line"><span id="luck-grade" hidden></span><span id="result-detail">等待计算</span></div>
+            <div class="hero-footer"><span id="result-rule">参考社区实测</span></div>
           </section>
           <div class="compute-actions">
             <button type="submit" form="planner" id="calculate" class="primary-button">计算成功概率 <span aria-hidden="true">↗</span></button>
             <button type="button" id="cancel" class="quiet-button" hidden>停止计算</button>
           </div>
           <p id="status" class="status" role="status" aria-live="polite"></p>
+          <section class="card results-card draw-card" aria-labelledby="draw-title">
+            <h2 id="draw-title">抽数一览</h2>
+            <dl class="draw-stats">
+              <div class="draw-now-row"><dt>现在可抽</dt><dd id="draw-now">0 抽</dd></div>
+              <div class="draw-estimate"><dt>含返还总量</dt><dd id="draw-total">—</dd></div>
+              <div class="draw-estimate"><dt>达标后余量</dt><dd id="draw-leftover">—</dd></div>
+            </dl>
+            <p class="help" id="draw-status">计算后显示返还和余量。</p>
+            <details class="inline-details draw-details">
+              <summary>抽数怎么算</summary>
+              <p class="help" id="draw-breakdown"></p>
+              <p class="help">按所选卡池和允许的兑换方式折算。</p>
+              <div id="draw-method" hidden>
+                <p class="help">含返还总量是把资源抽完时的平均抽数，已扣掉本次换共鸣链的消耗。达标后余量只看成功的情况，按当时手头资源折算。</p>
+                <p id="draw-spread" class="help"></p>
+                <p id="draw-conditions" class="help"></p>
+              </div>
+            </details>
+          </section>
           <section class="card results-card" id="comparison" hidden>
             <h2 id="comparison-title">策略对比</h2>
             <div id="comparison-rows"></div>
-            <div id="baseline-row" class="baseline-row" hidden><span>无新增回流</span><strong id="baseline-value"></strong></div>
+            <div id="baseline-row" class="baseline-row" hidden><span>不算本次返还</span><strong id="baseline-value"></strong></div>
           </section>
           <section class="card results-card" id="advice" hidden>
             <h2>第一步怎么选</h2>

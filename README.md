@@ -4,15 +4,16 @@
 
 ## 安装与使用
 
-从 [GitHub Releases](https://github.com/yunnre060214-sudo/wuwa-convene-planner/releases/latest) 下载与你的 Mac 匹配的 ZIP。要求 macOS 13 或更新版本。Apple Silicon 选择 `macos-arm64`，Intel 选择 `macos-x64`。解压后把 `TidePlanner.app` 拖到「应用程序」并打开。
+从 [GitHub Releases](https://github.com/yunnre060214-sudo/wuwa-convene-planner/releases/latest) 下载 `macos-arm64` 版。要求 Apple Silicon 芯片和 macOS 13 或更新版本。解压后把 `TidePlanner.app` 拖到「应用程序」并打开。
 
 本版使用临时签名，未通过 Apple 公证。若 macOS 拦截首次启动，核对下载来源和 Release 附带的 `SHA256SUMS.txt`，然后按 Apple 的「仍要打开」方式操作。[Apple 支持](https://support.apple.com/zh-cn/102445)
 
 1. 在「资源与目标」选角色、武器或联合目标，填入本次可投入的资源和商店剩余库存。
 2. 从所选的两类限定池记录填写五星、四星垫抽与 UP 保证。按共鸣链或谐振等级规划时，也要填写现有进度和可用份数。
 3. 已知非 UP 名单及持有量时，可在「角色持有量」逐个配置。快捷模式可给出保守与乐观返还之间的区间。
-4. 点击「计算成功概率」。联合目标可比较角色优先、武器优先和逐抽动态最优。基线保留已有珊瑚，关闭本次抽取新增的回流。
-5. 「概率与假设」可切换实测拟合曲线、仅硬保底情景，或为两池分别填写逐抽概率。
+4. 在「手头资源」中分别设置余波珊瑚是否换抽数，以及共鸣链目标还可换几份频段。两种用途共用同一余额。
+5. 点击「计算成功概率」。联合目标可比较角色优先、武器优先和看情况切换。概率附有档位评价，跨档时会标出来。
+6. 「抽数一览」显示手头可抽次数、含返还的总估算和达标后折算余量。「计算设置」可调整保底曲线。
 
 软件在本机计算并保存输入，无需登录游戏或连接服务器。浮金波纹用于限定角色，铸潮波纹用于限定武器，唤声涡纹用于常驻等池。忆旅、联动、新手、常驻和活动赠礼使用各自规则，属于通用限定池模型的范围之外。
 
@@ -32,13 +33,13 @@ npm run build:engine
 npm start
 ```
 
-在 macOS 打包并测试归档。把 `arm64` 替换为 `x64` 可在 Intel Mac 上执行同一流程。
+在 Apple Silicon Mac 上打包并测试归档。
 
 ```sh
-npm run package:mac -- arm64
-bash scripts/verify-mac.sh arm64
+npm run package:mac
+bash scripts/verify-mac.sh
 ```
 
-`app/` 含 Electron 主进程、界面和启动测试。`engine/` 是 Go 概率引擎。`scripts/` 含构建和归档验证入口。GitHub Actions 在两种架构上从 ZIP 解压、校验签名及架构，再启动应用执行端到端测试。
+`app/` 含 Electron 主进程、界面和启动测试。`engine/` 是 Go 概率引擎。`scripts/` 含构建和归档验证入口。GitHub Actions 在 Apple Silicon 上从 ZIP 解压、校验签名及架构，再启动应用执行端到端测试。
 
 潮汐演算是独立玩家工具。游戏名称与规则归各自权利人。

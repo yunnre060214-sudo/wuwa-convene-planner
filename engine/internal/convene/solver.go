@@ -34,8 +34,9 @@ type ResultRow struct {
 }
 
 type Result struct {
-	Rows        []ResultRow `json:"rows"`
-	Uncertainty string      `json:"uncertainty"`
+	Rows        []ResultRow      `json:"rows"`
+	Uncertainty string           `json:"uncertainty"`
+	Resources   ResourceForecast `json:"resources"`
 }
 
 type Progress struct {
@@ -44,6 +45,7 @@ type Progress struct {
 	States   int    `json:"states"`
 	Layer    int    `json:"layer,omitempty"`
 	Layers   int    `json:"layers,omitempty"`
+	Forecast bool   `json:"forecast,omitempty"`
 	Budget   int    `json:"budget"`
 }
 
@@ -438,7 +440,7 @@ type solved struct {
 	states  int
 }
 
-func solveScenario(c Config, strategy, scenario string, refund bool, progress func(Progress)) solved {
+func solveScenario(c Config, strategy, scenario string, refund bool, forecast *ResourceForecast, progress func(Progress)) solved {
 	if !refund {
 		scenario = "baseline"
 	}
@@ -463,15 +465,21 @@ func solveScenario(c Config, strategy, scenario string, refund bool, progress fu
 			p.hi = min(p.hi, m.prepaidUpper().hi)
 		}
 	}
+	if forecast != nil {
+		if progress != nil {
+			progress(Progress{Strategy: strategy, Scenario: scenario, Forecast: true})
+		}
+		*forecast = m.forecast()
+	}
 	return solved{p, m.rootActions, m.hasCutoff, m.visited}
 }
 
-func combined(c Config, strategy string, progress func(Progress)) solved {
+func combined(c Config, strategy string, forecast *ResourceForecast, progress func(Progress)) solved {
 	if c.Ownership.Mode != "bounds" {
-		return solveScenario(c, strategy, c.Ownership.Mode, true, progress)
+		return solveScenario(c, strategy, c.Ownership.Mode, true, forecast, progress)
 	}
-	low := solveScenario(c, strategy, "normal", true, progress)
-	high := solveScenario(c, strategy, "maxed", true, progress)
+	low := solveScenario(c, strategy, "normal", true, forecast, progress)
+	high := solveScenario(c, strategy, "maxed", true, nil, progress)
 	for a, l := range low.actions {
 		if h, ok := high.actions[a]; ok {
 			low.actions[a] = interval{l.lo, h.hi}
@@ -505,10 +513,14 @@ func Calculate(c Config, progress func(Progress)) (Result, error) {
 	}
 	result := Result{Uncertainty: c.Ownership.Mode}
 	for _, strategy := range strategies {
-		current := combined(c, strategy, progress)
+		var forecast *ResourceForecast
+		if strategy == c.Strategy {
+			forecast = &result.Resources
+		}
+		current := combined(c, strategy, forecast, progress)
 		row := ResultRow{Strategy: strategy, States: current.states, Incomplete: current.cutoff}
 		if c.Baseline {
-			baseline := solveScenario(c, strategy, "baseline", false, progress)
+			baseline := solveScenario(c, strategy, "baseline", false, nil, progress)
 			bounds := baseline.p.bounds()
 			row.Baseline = &bounds
 			row.Incomplete = row.Incomplete || baseline.cutoff
@@ -518,7 +530,7 @@ func Calculate(c Config, progress func(Progress)) (Result, error) {
 		if strategy == "optimal" && current.cutoff && len(strategies) == 1 &&
 			c.Goals.Character > 0 && c.Goals.Weapon > 0 {
 			for _, alternative := range []string{"characterFirst", "weaponFirst"} {
-				fixed := combined(c, alternative, progress)
+				fixed := combined(c, alternative, nil, progress)
 				recordFirstStep(alternative, fixed.p.lo)
 				current.p.lo = max(current.p.lo, fixed.p.lo)
 				row.States += fixed.states

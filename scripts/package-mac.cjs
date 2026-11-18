@@ -6,9 +6,9 @@ const { execFileSync } = require("node:child_process");
 const pkg = require("../package.json");
 
 async function run() {
-  const architecture = process.argv[2] || process.arch;
-  if (!["arm64", "x64"].includes(architecture)) {
-    throw new Error("Specify arm64 or x64");
+  const architecture = "arm64";
+  if (process.argv[2] && process.argv[2] !== architecture) {
+    throw new Error("The macOS package targets Apple Silicon (arm64).");
   }
   const root = path.join(__dirname, "..");
   const output = path.join(root, "dist");
@@ -19,7 +19,7 @@ async function run() {
     env: {
       ...process.env,
       GOOS: "darwin",
-      GOARCH: architecture === "arm64" ? "arm64" : "amd64",
+      GOARCH: architecture,
     },
   });
   const [target] = await packager({
