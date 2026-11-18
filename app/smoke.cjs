@@ -57,15 +57,22 @@ async function exerciseRenderer() {
   await wait(() => field("status").textContent === "计算完成");
   expect(field("probability").textContent === "0%", "Wrong empty-wallet probability");
   expect(field("result-label").textContent === "武器成功概率", "Wrong result mode");
+  expect(field("spend-wavebands").disabled, "A weapon-only plan cannot redeem wavebands");
   expect(field("draw-leftover").textContent === "—", "An impossible plan should have no leftover estimate");
 
   document.querySelector('[name="target"][value="character"]').click();
-  set("character-mode", "chain");
+  expect(!field("spend-wavebands").disabled, "Waveband switch should be available for a character target");
+  set("spend-wavebands", true);
+  expect(field("character-mode").value === "chain", "Waveband switch should select the chain goal");
   set("character-owned", 1);
   set("character-chain", 2);
   set("wavebands", 1);
   set("afterglow", 360);
   expect(!field("shop-field").hidden, "Chain exchange should be visible");
+  set("spend-wavebands", false);
+  expect(field("shop-field").hidden, "Chain exchange switch should hide its count when off");
+  set("spend-wavebands", true);
+  expect(typeof window.convene.checkUpdate === "function" && !field("check-update").disabled, "Missing update entry point");
   expect(field("draw-now").textContent === "45 抽", "Wrong red coral conversion");
   set("spend-afterglow", false);
   expect(field("draw-now").textContent === "0 抽", "Reserved coral should leave the draw budget");

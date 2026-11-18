@@ -188,7 +188,7 @@ function collect() {
       heldCharacter: held, targetCopies: copies,
       heldWeapon: rank ? number("weapon-owned") : 0,
       characterChain: chain, weaponRank: rank,
-      wavebands: chain ? number("wavebands") : 0, buyCounts: checked("buy-counts"),
+      wavebands: chain && checked("spend-wavebands") ? number("wavebands") : 0, buyCounts: checked("buy-counts"),
     },
     pools: [followPool("c", character || farm), followPool("w", weapon || farm)],
     ownership: {
@@ -224,9 +224,14 @@ function sync() {
   show("weapon-owned-field", rank);
   show("character-pool", character || farm);
   show("weapon-pool", weapon || farm);
-  show("shop-field", character && chain);
-  show("shop-hint", !character || !chain);
-  show("coral-shared", character && chain);
+  const shopEnabled = character && chain && checked("spend-wavebands");
+  $("spend-wavebands").disabled = !character;
+  show("shop-field", shopEnabled);
+  show("shop-hint", !shopEnabled);
+  $("shop-hint").textContent = !character ? "有角色目标时可用。" :
+    chain ? "开启后可填写还能换几份。" : "开启后，角色目标会切换为共鸣链。";
+  show("coral-shared", shopEnabled);
+  $("coral-shared").textContent = checked("spend-afterglow") ? "两种用法共用余波珊瑚。先拥有角色，才能换频段。" : "先拥有角色，才能换频段。";
   show("compare-field", mode === "joint");
   for (const id of ["c4-label", "w4-label"]) {
     $(id).textContent = checked("five-resets-four") ? "距上次四星或五星" : "距上次四星";
@@ -302,6 +307,10 @@ function load() {
       if (field.type === "checkbox") field.checked = Boolean(saved.values[field.id]);
       else field.value = saved.values[field.id];
     }
+    if (!Object.hasOwn(saved.values, "spend-wavebands") && saved.values["character-mode"] === "chain") {
+      $("spend-wavebands").checked = Number($("wavebands").value) > 0 && Object.hasOwn(saved.values, "wavebands");
+    }
+    if (Number($("wavebands").value) < 1) $("wavebands").value = 1;
     form.elements.target.value = saved.target;
     (saved.four ?? []).slice(0, 64).forEach((role) => rosterRow("four", role));
     (saved.five ?? []).slice(0, 32).forEach((role) => rosterRow("five", role));
@@ -367,6 +376,8 @@ function displayForecast(resources, probability, uncertainty) {
 function changed(event) {
   revision++;
   const id = event?.target?.id;
+  if (id === "spend-wavebands" && checked("spend-wavebands")) $("character-mode").value = "chain";
+  if (id === "character-mode" && $("character-mode").value !== "chain") $("spend-wavebands").checked = false;
   sync();
   if (["profile", "custom-character"].includes(id)) chart();
   save();
@@ -509,7 +520,7 @@ $("example").addEventListener("click", () => {
   };
   for (const [id, value] of Object.entries(fields)) $(id).value = value;
   ["c-up5", "compare", "baseline", "spend-afterglow", "five-resets-four"].forEach((id) => { $(id).checked = true; });
-  ["c-up4", "w-up4", "farm"].forEach((id) => { $(id).checked = false; });
+  ["c-up4", "w-up4", "farm", "spend-wavebands"].forEach((id) => { $(id).checked = false; });
   selectPage("plan");
   chart();
   changed();
@@ -531,3 +542,17 @@ if (!load()) {
 }
 sync();
 chart();
+
+const checkUpdate = $("check-update");
+checkUpdate.addEventListener("click", async () => {
+  checkUpdate.disabled = true;
+  try {
+    await window.convene?.checkUpdate();
+  } catch {
+    status("暂时无法检查更新。", true);
+  } finally {
+    checkUpdate.disabled = false;
+    checkUpdate.textContent = "检查更新";
+  }
+});
+window.convene?.onUpdateStatus((value) => { checkUpdate.textContent = value || "检查更新"; });

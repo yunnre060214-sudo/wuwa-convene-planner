@@ -20,3 +20,4 @@ test "$(lipo -archs "$bundle/Contents/Resources/convene")" = "$arch"
 bundle_version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$bundle/Contents/Info.plist")"
 test "$bundle_version" = "$version"
 "$bundle/Contents/MacOS/TidePlanner" --smoke-test
+node scripts/test-update-mac.cjs "$archive" "$unpacked"

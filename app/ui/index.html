@@ -18,7 +18,7 @@
         <button type="button" class="nav-button" data-page="ownership"><span aria-hidden="true">▤</span>角色持有量</button>
         <button type="button" class="nav-button" data-page="model"><span aria-hidden="true">⌁</span>计算设置</button>
       </nav>
-      <footer>本机计算 · 离线可用 <span>1.1.1</span></footer>
+      <footer><button id="check-update" type="button" title="从 GitHub 检查新版">检查更新</button><span>1.2.0</span></footer>
     </aside>
     <main>
       <header class="toolbar">
@@ -76,12 +76,12 @@
                   <p class="help">8 个换 1 抽</p>
                 </div>
                 <div class="coral-option">
-                  <strong>余波珊瑚换共鸣链</strong>
+                  <label class="check"><input type="checkbox" id="spend-wavebands">余波珊瑚换共鸣链</label>
                   <p class="help">360 个换 1 份频段</p>
                   <div id="shop-field" hidden>
-                    <label class="field">剩余可换份数<input type="number" id="wavebands" min="0" max="2" value="0" required></label>
+                    <label class="field">剩余可换份数<input type="number" id="wavebands" min="1" max="2" value="1" required></label>
                   </div>
-                  <p id="shop-hint" class="help">将角色目标设为共鸣链后可用。</p>
+                  <p id="shop-hint" class="help">开启后，角色目标会切换为共鸣链。</p>
                 </div>
               </div>
               <p id="coral-shared" class="help" hidden>两种用法共用余波珊瑚。先拥有角色，才能换频段。</p>

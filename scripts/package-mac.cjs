@@ -13,6 +13,7 @@ async function run() {
   const root = path.join(__dirname, "..");
   const output = path.join(root, "dist");
   const binary = path.join(root, "build", "engine-darwin-" + architecture, "convene");
+  const swap = path.join(path.dirname(binary), "swap-app");
   const { packager } = await import("@electron/packager");
   execFileSync("bash", [path.join(__dirname, "build-engine.sh"), binary], {
     stdio: "inherit",
@@ -22,6 +23,8 @@ async function run() {
       GOARCH: architecture,
     },
   });
+  execFileSync("xcrun", ["clang", "-arch", architecture, "-mmacosx-version-min=13.0", "-O2", "-Wall", "-Wextra",
+    "-o", swap, path.join(__dirname, "swap-app.c")], { stdio: "inherit" });
   const [target] = await packager({
     dir: root,
     out: output,
@@ -35,7 +38,7 @@ async function run() {
     appCategoryType: "public.app-category.utilities",
     icon: path.join(root, "app", "icon.icns"),
     extendInfo: { CFBundleDisplayName: "潮汐演算", LSMinimumSystemVersion: "13.0" },
-    extraResource: [binary],
+    extraResource: [binary, swap],
     ignore: /^\/(?:engine|scripts|tests|docs|build|dist|node_modules|\.(?:git|github))(?:\/|$)/,
     overwrite: true,
     prune: false,
