@@ -1,0 +1,89 @@
+name: Build and verify macOS
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.4'
+          cache: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - run: go test -v ./...
+        working-directory: engine
+      - run: npm test
+
+  package:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.4'
+          cache: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit
+      - run: npm run package:mac -- "$ARCH"
+        env:
+          ARCH: ${{ matrix.arch }}
+      - name: Archive, verify signatures and run the shipped GUI
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/verify-mac.sh "$ARCH"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: dist/release/TidePlanner-*.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: macos-*
+          path: dist/release
+          merge-multiple: true
+      - name: Publish verified macOS archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p 'require("./package.json").version')"
+          test "$RELEASE_TAG" = "v$VERSION"
+          cd dist/release
+          sha256sum "TidePlanner-${VERSION}-macos-arm64.zip" "TidePlanner-${VERSION}-macos-x64.zip" > SHA256SUMS.txt
+          gh release create "$RELEASE_TAG" --verify-tag --title "潮汐演算 $RELEASE_TAG" --notes-file ../../docs/release.md \
+            "TidePlanner-${VERSION}-macos-arm64.zip" "TidePlanner-${VERSION}-macos-x64.zip" SHA256SUMS.txt
