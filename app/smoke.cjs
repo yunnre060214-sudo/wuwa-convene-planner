@@ -42,6 +42,8 @@ async function exerciseRenderer() {
   field("calculate").click();
   await wait(() => field("status").textContent === "计算完成");
   expect(field("probability").textContent === "100%", "Wrong joint feedback probability");
+  const gauge = (bound) => parseFloat(field("gauge-" + bound).getAttribute("stroke-dasharray"));
+  expect(gauge("lower") === 100 && gauge("upper") === 100, "Certain result should fill the whole gauge");
   expect(field("baseline-value").textContent === "0%", "Wrong joint no-feedback probability");
   expect(field("comparison-rows").children.length === 3, "Missing strategy comparison");
   expect(field("luck-grade").textContent === "稳稳拿下", "Missing certainty grade");
@@ -56,6 +58,7 @@ async function exerciseRenderer() {
   field("calculate").click();
   await wait(() => field("status").textContent === "计算完成");
   expect(field("probability").textContent === "0%", "Wrong empty-wallet probability");
+  expect(gauge("lower") === 0 && gauge("upper") === 0, "Empty wallet should clear the gauge");
   expect(field("result-label").textContent === "武器成功概率", "Wrong result mode");
   expect(field("spend-wavebands").disabled, "A weapon-only plan cannot redeem wavebands");
   expect(field("draw-leftover").textContent === "—", "An impossible plan should have no leftover estimate");
@@ -98,6 +101,7 @@ async function exerciseRenderer() {
   field("calculate").click();
   await wait(() => field("status").textContent === "计算完成");
   expect(field("probability").textContent.endsWith("–100%"), "Unknown pool mix should show a range");
+  expect(gauge("lower") < gauge("upper") && gauge("upper") === 100, "Range should display both probability bounds");
   expect(field("uncertainty").textContent.includes("四星数量未知"), "Missing preset range explanation");
 
   set("preset-c-roles", 12);

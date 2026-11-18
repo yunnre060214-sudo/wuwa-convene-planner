@@ -16,7 +16,12 @@ const ownershipLabels = {
   detail: "按你填写的角色份数和卡池名单算。",
 };
 const profileLabels = { empirical: "参考玩家记录", hard: "只算第 80 抽保底", custom: "按填入的出率" };
-const pageTitles = { plan: "抽取计划", ownership: "角色持有量", model: "计算设置" };
+const pages = {
+  plan: ["抽取计划", "规划限定角色与武器的唤取目标，估算手头资源的成功概率。"],
+  ownership: ["角色持有量", "填写已有角色与共鸣链，估算重复唤取能返还的珊瑚。"],
+  model: ["计算设置", "查看逐抽五星出率，调整卡池的保底与返还规则。"],
+};
+document.documentElement.classList.toggle("mac", navigator.platform.startsWith("Mac"));
 const appFields = Array.from(form.querySelectorAll("[id]")).filter((field) =>
   field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement
 );
@@ -39,7 +44,9 @@ function selectPage(id) {
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
-  $("page-title").textContent = pageTitles[id];
+  const [title, description] = pages[id];
+  $("page-title").textContent = title;
+  $("page-description").textContent = description;
   window.scrollTo(0, 0);
 }
 
@@ -278,6 +285,7 @@ function chart() {
     bar.setAttribute("aria-hidden", "true");
     fragments.append(bar);
   }
+  if (series.length === 0) fragments.append(element("span", "填好角色池的 80 个出率后显示曲线。", "chart-empty"));
   chart.replaceChildren(fragments);
   const notes = {
     empirical: "参考公开的约 1,500 万抽记录。按这组数据，第 66 抽起更容易出五星，第 79 抽出率达到 100%。",
@@ -403,6 +411,10 @@ function display(result, config, mode, profile, current) {
   hasResult = true;
   const picked = result.rows.find((entry) => entry.strategy === config.strategy) ?? result.rows[0];
   const probability = formatProbability(picked.probability);
+  for (const bound of ["lower", "upper"]) {
+    const percent = 100 * Number(picked.probability[bound]) / Number(scale);
+    $(`gauge-${bound}`).setAttribute("stroke-dasharray", `${percent} 100`);
+  }
   $("probability").textContent = probability.text;
   $("probability").classList.toggle("range", probability.range);
   $("result-label").textContent = ({ joint: "联合成功概率", character: "角色成功概率", weapon: "武器成功概率" })[mode];
@@ -552,7 +564,7 @@ checkUpdate.addEventListener("click", async () => {
     status("暂时无法检查更新。", true);
   } finally {
     checkUpdate.disabled = false;
-    checkUpdate.textContent = "检查更新";
+    $("update-label").textContent = "检查更新";
   }
 });
-window.convene?.onUpdateStatus((value) => { checkUpdate.textContent = value || "检查更新"; });
+window.convene?.onUpdateStatus((value) => { $("update-label").textContent = value || "检查更新"; });

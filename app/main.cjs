@@ -157,10 +157,10 @@ function createWindow() {
   window = new BrowserWindow({
     width: 1270,
     height: 880,
-    minWidth: 870,
+    minWidth: 600,
     minHeight: 650,
     title: "潮汐演算",
-    backgroundColor: "#f6f5f0",
+    backgroundColor: "#eff3f7",
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     show: false,
     webPreferences: {
