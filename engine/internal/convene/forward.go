@@ -11,7 +11,10 @@ func prune(frontier map[state]interval, limit int) interval {
 		return zero
 	}
 	var deferred interval
-	threshold := uint64(minimumMass)
+	var threshold uint64
+	if limit < maxStates {
+		threshold = minimumMass
+	}
 	if len(frontier) > limit {
 		masses := make([]uint64, 0, len(frontier))
 		for _, p := range frontier {

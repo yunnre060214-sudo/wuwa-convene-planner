@@ -10,8 +10,8 @@ const futureLabels = {
 };
 const ownershipLabels = {
   bounds: "下界用普通返还。上界用可能的最大返还，包含非 UP 四星物品可能为溢出角色的情形。",
-  normal: "其他四星角色每份按 3 珊瑚，非 UP 五星每份按 45 珊瑚；此设定给出保守情景。",
-  maxed: "可能获得的其他角色按溢出返还，未知非 UP 四星类型取较大的返还；此设定给出乐观情景。",
+  normal: "其他四星角色每份按 3 珊瑚，非 UP 五星每份按 45 珊瑚。此设定给出保守情景。",
+  maxed: "可能获得的其他角色按溢出返还，未知非 UP 四星类型取较大的返还。此设定给出乐观情景。",
   detail: "按名单、权重和已有份数模拟每次重复获取。模板只包含 3 个四星 UP 位，请补全各池名单和武器权重。",
 };
 const profileLabels = { empirical: "实测拟合模型", hard: "仅硬保底情景", custom: "自定义五星曲线" };
@@ -151,6 +151,9 @@ function collect() {
     up4: usesPool && checked(`${prefix}-up4`),
   });
   const held = chain ? Number($("character-owned").value) : 0;
+  const copies = character || farm
+    ? $("target-copies").value === "" ? held : number("target-copies")
+    : 0;
   return {
     resources: {
       astrite: number("astrite"), lunite: number("lunite"),
@@ -162,7 +165,7 @@ function collect() {
     goals: {
       character: character ? chain ? Number($("character-chain").value) : number("character-copies") : 0,
       weapon: weapon ? rank ? Number($("weapon-rank").value) : number("weapon-copies") : 0,
-      heldCharacter: held, targetCopies: chain ? held : character || farm ? number("target-copies") : 0,
+      heldCharacter: held, targetCopies: copies,
       heldWeapon: rank ? number("weapon-owned") : 0,
       characterChain: chain, weaponRank: rank,
       wavebands: chain ? number("wavebands") : 0, buyCounts: checked("buy-counts"),
@@ -194,7 +197,7 @@ function sync() {
   show("character-copy-field", character && !chain);
   show("character-chain-field", character && chain);
   show("character-owned-field", character && chain);
-  show("target-copies-field", character ? !chain : farm);
+  show("target-copies-field", character || farm);
   show("weapon-copy-field", !rank);
   show("weapon-rank-field", rank);
   show("weapon-owned-field", rank);
@@ -324,7 +327,7 @@ function display(result, config, mode, profile) {
   $("advice-rows").replaceChildren(...actions.map((entry) => row(futureLabels[entry.id], entry.probability)));
   const notes = [];
   if (result.uncertainty === "bounds") notes.push("持有量上下界反映未知的重复返还。");
-  if (result.rows.some((entry) => entry.incomplete)) notes.push("部分状态未展开，区间包含余下的搜索误差。提高搜索上限可收紧结果。");
+  if (result.rows.some((entry) => entry.incomplete)) notes.push("区间包含未展开状态的误差界。提高搜索上限可尝试收紧。");
   if (profile !== "custom") notes.push("结果依赖所选五星曲线。");
   $("uncertainty").textContent = notes.join("");
 }

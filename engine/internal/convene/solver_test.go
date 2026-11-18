@@ -243,3 +243,37 @@ func TestInvalidInputsRejected(t *testing.T) {
 		t.Fatal("invalid pity accepted")
 	}
 }
+
+func TestRelaxedBillUpperEnclosesExactAdaptive(t *testing.T) {
+	for initialBlue := 0; initialBlue <= 150; initialBlue += 25 {
+		c := testConfig()
+		c.Goals.Weapon = 1
+		c.Pools = [2]Pool{{Pity5: 77, Pity4: 9}, {Pity5: 78, Pity4: 9}}
+		c.Resources.Astrite = 160
+		c.Resources.Afterglow = initialBlue / 9
+		c.Resources.Oscillated = initialBlue
+		c.Resources.OscStock = [2]int{2, 1}
+		c.Rules.Five[character][77] = 200_000_000
+		c.Rules.Five[weapon][78] = 500_000_000
+		for _, mode := range []string{"normal", "maxed"} {
+			m := newSolver(c, "optimal", mode, true, nil)
+			value := m.value(m.initial)
+			projected := m.prepaidUpper()
+			if m.hasCutoff || projected.hi < value.hi {
+				t.Fatalf("relaxed bill does not enclose exact calculation. Initial blue=%d, mode=%s, exact=%v, relaxed=%v",
+					initialBlue, mode, value, projected)
+			}
+		}
+	}
+}
+
+func TestDeterministicPathPotentialKeepsCurrencyConserved(t *testing.T) {
+	c := testConfig()
+	c.Goals.Weapon = 1
+	c.Resources = Resources{Astrite: 159, Lunite: 1, Afterglow: 7, SpendAfter: true, Oscillated: 69, OscStock: [2]int{0, 1}}
+	c.Pools[character] = Pool{Pity5: 79, Up5: true}
+	c.Pools[weapon] = Pool{Pity5: 79}
+	got := rows(t, c)[0]
+	assertContains(t, got.Probability, 1, 1)
+	assertContains(t, *got.Baseline, 0, 1)
+}

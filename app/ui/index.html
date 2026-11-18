@@ -44,7 +44,7 @@
                     <label class="field" id="character-copy-field">新增份数<input id="character-copies" type="number" min="1" max="30" value="1" required></label>
                     <label class="field" id="character-chain-field" hidden>目标共鸣链<select id="character-chain"></select></label>
                     <label class="field" id="character-owned-field" hidden>已有角色及共鸣链<select id="character-owned"></select></label>
-                    <label class="field" id="target-copies-field">目标角色已有份数<input id="target-copies" type="number" min="0" max="7" value="0" required></label>
+                    <label class="field" id="target-copies-field">目标角色已计份数<input id="target-copies" type="number" min="0" max="7" placeholder="自动"></label>
                   </div>
                 </div>
                 <div id="weapon-goal">
@@ -79,7 +79,7 @@
                 <label class="check"><input type="checkbox" id="spend-afterglow" checked>允许以 8 余波珊瑚兑换 1 抽</label>
                 <div id="shop-field" hidden>
                   <label class="field">可买的目标回音频段<input type="number" id="wavebands" min="0" max="2" value="0" required></label>
-                  <p class="help">每个 360 余波珊瑚。持有目标角色后才能购买，取得整份角色的目标只计抽取。</p>
+                  <p class="help">每个 360 余波珊瑚，持有目标角色后可购买。目标角色已计份数留空时，按已有共鸣链或未持有计算。</p>
                 </div>
                 <p class="help">每 70 残振珊瑚换 1 抽，请填写当前商店剩余库存。唤声涡纹仅用于常驻类卡池。</p>
               </details>
@@ -115,7 +115,7 @@
                   <select id="strategy"><option value="optimal">逐抽动态最优</option><option value="characterFirst">角色优先</option><option value="weaponFirst">武器优先</option></select>
                 </label>
                 <label class="field">搜索状态上限
-                  <select id="state-budget"><option value="100000">10 万</option><option value="800000">80 万</option><option value="3000000">300 万</option><option value="8000000">800 万</option></select>
+                  <select id="state-budget"><option value="100000">10 万</option><option value="800000">80 万</option><option value="3000000">300 万</option><option value="8000000">800 万 · 保留小概率</option></select>
                 </label>
               </div>
               <label class="check" id="compare-field"><input type="checkbox" id="compare" checked>比较两种固定顺序与动态策略</label>

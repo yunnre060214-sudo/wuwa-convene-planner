@@ -491,6 +491,18 @@ func Calculate(c Config, progress func(Progress)) (Result, error) {
 		strategies = []string{"characterFirst", "weaponFirst", "optimal"}
 	}
 	var fixedLower uint64
+	var firstStepLower [2]uint64
+	pending := c.Goals.remaining()
+	recordFirstStep := func(strategy string, lower uint64) {
+		if c.Goals.Wavebands != 0 || pending[character] == 0 || pending[weapon] == 0 {
+			return
+		}
+		if strategy == "characterFirst" {
+			firstStepLower[character] = lower
+		} else {
+			firstStepLower[weapon] = lower
+		}
+	}
 	result := Result{Uncertainty: c.Ownership.Mode}
 	for _, strategy := range strategies {
 		current := combined(c, strategy, progress)
@@ -507,6 +519,7 @@ func Calculate(c Config, progress func(Progress)) (Result, error) {
 			c.Goals.Character > 0 && c.Goals.Weapon > 0 {
 			for _, alternative := range []string{"characterFirst", "weaponFirst"} {
 				fixed := combined(c, alternative, progress)
+				recordFirstStep(alternative, fixed.p.lo)
 				current.p.lo = max(current.p.lo, fixed.p.lo)
 				row.States += fixed.states
 			}
@@ -515,10 +528,15 @@ func Calculate(c Config, progress func(Progress)) (Result, error) {
 			current.p.lo = max(current.p.lo, fixedLower)
 		} else {
 			fixedLower = max(fixedLower, current.p.lo)
+			recordFirstStep(strategy, current.p.lo)
 		}
 		row.Probability = current.p.bounds()
 		for i, id := range actionNames {
 			if p, ok := current.actions[action(i)]; ok {
+				if strategy == "optimal" && i < len(firstStepLower) {
+					p.lo = max(p.lo, firstStepLower[i])
+				}
+				p.hi = min(p.hi, current.p.hi)
 				row.Actions = append(row.Actions, ActionResult{id, p.bounds()})
 			}
 		}
