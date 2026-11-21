@@ -16,11 +16,6 @@ const ownershipLabels = {
   detail: "按你填写的角色份数和卡池名单算。",
 };
 const profileLabels = { empirical: "参考玩家记录", hard: "只算第 80 抽保底", custom: "按填入的出率" };
-const pages = {
-  plan: ["抽取计划", "规划限定角色与武器的唤取目标，估算手头资源的成功概率。"],
-  ownership: ["角色持有量", "填写已有角色与共鸣链，估算重复唤取能返还的珊瑚。"],
-  model: ["计算设置", "查看逐抽五星出率，调整卡池的保底与返还规则。"],
-};
 document.documentElement.classList.toggle("mac", navigator.platform.startsWith("Mac"));
 const appFields = Array.from(form.querySelectorAll("[id]")).filter((field) =>
   field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement
@@ -44,9 +39,7 @@ function selectPage(id) {
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
-  const [title, description] = pages[id];
-  $("page-title").textContent = title;
-  $("page-description").textContent = description;
+  document.title = document.querySelector(".nav-button.active").textContent + " · 潮汐演算";
   window.scrollTo(0, 0);
 }
 

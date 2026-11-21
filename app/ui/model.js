@@ -56,19 +56,19 @@ const TideModel = (() => {
   }
 
   const grades = [
-    { below: 5n, label: "梦里什么都有", tone: "low" },
-    { below: 25n, label: "欧皇附体才有戏", tone: "low" },
-    { below: 50n, label: "还得拼手气", tone: "warm" },
-    { below: 75n, label: "有戏", tone: "warm" },
-    { below: 90n, label: "胜算挺大", tone: "good" },
-    { below: 101n, label: "基本稳了", tone: "good" },
+    { below: 5n, label: "概率极低", tone: "low" },
+    { below: 25n, label: "概率低", tone: "low" },
+    { below: 50n, label: "概率偏低", tone: "warm" },
+    { below: 75n, label: "概率偏高", tone: "warm" },
+    { below: 90n, label: "概率高", tone: "good" },
+    { below: 101n, label: "概率极高", tone: "good" },
   ];
 
   function probabilityGrade(probability) {
     const lower = BigInt(probability.lower);
     const upper = BigInt(probability.upper);
     if (upper === 0n) return { label: "当前方案无法达标", tone: "low" };
-    if (lower === scale) return { label: "稳稳拿下", tone: "good" };
+    if (lower === scale) return { label: "确定达标", tone: "good" };
     const gradeAt = (value) => grades.find(({ below }) => value * 100n < below * scale);
     if ((upper - lower) * 10_000_000n < scale) return gradeAt((lower + upper) / 2n);
     const first = gradeAt(lower);

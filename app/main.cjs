@@ -160,7 +160,7 @@ function createWindow() {
     minWidth: 600,
     minHeight: 650,
     title: "潮汐演算",
-    backgroundColor: "#eff3f7",
+    backgroundColor: "#faf8f3",
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     show: false,
     webPreferences: {
