@@ -46,7 +46,7 @@ async function exerciseRenderer() {
   expect(gauge("lower") === 100 && gauge("upper") === 100, "Certain result should fill the whole gauge");
   expect(field("baseline-value").textContent === "0%", "Wrong joint no-feedback probability");
   expect(field("comparison-rows").children.length === 3, "Missing strategy comparison");
-  expect(field("luck-grade").textContent === "稳稳拿下", "Missing certainty grade");
+  expect(field("luck-grade").textContent === "确定达标", "Missing certainty grade");
   expect(field("draw-leftover").textContent === "约 2 抽", "Wrong joint leftover");
   expect(/^约 [0-9]+/.test(field("draw-total").textContent), "Missing refund-adjusted draw total");
 

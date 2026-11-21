@@ -58,17 +58,17 @@ test("probability grades respect thresholds and display uncertainty", () => {
   const units = (percent) => String(BigInt(percent) * model.scale / 100n);
   const grade = (lo, hi = lo) => model.probabilityGrade({ lower: units(lo), upper: units(hi) });
   assert.equal(grade(0).label, "当前方案无法达标");
-  assert.equal(grade(1).label, "梦里什么都有");
-  assert.equal(grade(20).label, "欧皇附体才有戏");
-  assert.equal(grade(42).label, "还得拼手气");
-  assert.equal(grade(50).label, "有戏");
-  assert.equal(grade(75).label, "胜算挺大");
-  assert.equal(grade(99).label, "基本稳了");
-  assert.equal(grade(100).label, "稳稳拿下");
-  assert.equal(grade(17, 20).label, "欧皇附体才有戏");
+  assert.equal(grade(1).label, "概率极低");
+  assert.equal(grade(20).label, "概率低");
+  assert.equal(grade(42).label, "概率偏低");
+  assert.equal(grade(50).label, "概率偏高");
+  assert.equal(grade(75).label, "概率高");
+  assert.equal(grade(99).label, "概率极高");
+  assert.equal(grade(100).label, "确定达标");
+  assert.equal(grade(17, 20).label, "概率低");
   assert.equal(grade(35, 95).label, "概率跨档");
-  assert.equal(grade(99, 100).label, "基本稳了");
+  assert.equal(grade(99, 100).label, "概率极高");
   assert.equal(model.probabilityGrade({
     lower: String(model.scale / 2n - 1n), upper: String(model.scale / 2n + 1n),
-  }).label, "有戏");
+  }).label, "概率偏高");
 });
